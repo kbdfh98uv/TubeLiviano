@@ -7,10 +7,10 @@ LDLIBS = -luser32 -lgdi32 -lshell32
 
 .PHONY: all clean clips deps package
 all: build/portable/TubeLiviano.exe
-build/portable/TubeLiviano.exe: src/main.c src/player.c src/engine.c src/player.h src/engine.h build/app.o
+build/portable/TubeLiviano.exe: src/main.c src/player.c src/engine.c src/os_detect.c src/player.h src/engine.h src/os_detect.h build/app.o
 	mkdir -p build/portable
-	$(CC) $(CFLAGS) src/main.c src/player.c src/engine.c build/app.o $(LDFLAGS) $(LDLIBS) -o $@
-build/app.o: src/app.rc
+	$(CC) $(CFLAGS) src/main.c src/player.c src/engine.c src/os_detect.c build/app.o $(LDFLAGS) $(LDLIBS) -o $@
+build/app.o: src/app.rc src/app.manifest
 	mkdir -p build
 	$(WINDRES) $< $@
 clips:

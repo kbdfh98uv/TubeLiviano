@@ -9,7 +9,7 @@
 #include "engine.h"
 #include "player.h"
 
-#define VERSION L"0.5"
+#define VERSION L"0.5.1"
 #define DONE (WM_APP+1)
 #define COUNT(a) (sizeof(a)/sizeof((a)[0]))
 enum { QUERY=100, SEARCH, PASTE, RESULTS, QUALITY, MODE, BRIDGE, PLAY,
@@ -28,7 +28,7 @@ static HWND play, pausebtn, cancelbtn, retry, offline, status, video, labels;
 static HFONT font, bold;
 static HBRUSH black;
 static Engine engine;
-static WCHAR base[MAX_PATH], lasturl[2048], lastquery[2048], err[768];
+static WCHAR base[MAX_PATH], lasturl[2048], lastquery[2048], err[768], engine_error[768];
 static EngineResult results[ENGINE_MAX_RESULTS];
 static int result_count, last_action, pending, last_state = -1;
 static BOOL closing, playing, probed, engine_ok, testmode;
@@ -144,7 +144,7 @@ static void launch(int action, BOOL fallback) {
         if (bridge_url(url, sizeof(url))) open_stream(url, NULL, FALSE);
         return;
     }
-    if (!engine_ok) { fail(err); return; }
+    if (!engine_ok) { fail(engine_error); return; }
     task = (Work *)calloc(1, sizeof(*task));
     if (!task) { fail(L"No hay memoria para iniciar el motor."); return; }
     task->action = action; task->height = height(); task->fallback = fallback;
@@ -172,7 +172,7 @@ static void finish_work(void) {
         return;
     }
     if (!w->ok) {
-        if (w->action == DO_PLAY && !w->fallback) {
+        if (w->action == DO_PLAY && !w->fallback && !engine.loader_failed) {
             free(w); probed = TRUE; launch(DO_PLAY, TRUE); return;
         }
         fail(w->error); free(w); return;
@@ -310,9 +310,12 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         EnableWindow(cancelbtn,FALSE); EnableWindow(retry,FALSE); EnableWindow(pausebtn,FALSE);
         cancel_event=CreateEventW(NULL,TRUE,FALSE,NULL);
         if (!cancel_event) return -1;
-        engine_ok=engine_init(&engine,base,err,COUNT(err));
-        _snwprintf(caption,COUNT(caption),L"Motor: %ls • 3 perfiles, sin calidades altas • VLC 3 x86",engine.xp ? L"XP / legado" : L"oficial Win10/11");
+        engine_ok=engine_init(&engine,base,engine_error,COUNT(engine_error));
+        _snwprintf(caption,COUNT(caption),L"Windows %lu.%lu • Motor: %ls • VLC 3 x86",
+                   (unsigned long)engine.os_major,(unsigned long)engine.os_minor,
+                   engine_ok ? (engine.xp ? L"XP" : L"oficial Win10/11") : L"no disponible");
         SetWindowTextW(labels,caption);
+        if (!engine_ok) text(engine_error);
         SetTimer(h,1,100,NULL);
         return 0;
     }
@@ -382,11 +385,14 @@ int WINAPI WinMain(HINSTANCE instance,HINSTANCE previous,LPSTR command,int show)
     RECT workarea;
     int width=840, window_height=590;
     (void)previous; (void)command;
+    /* Child loader errors must return a status to the GUI, never a modal system
+     * dialog that leaves extraction stuck until the user clicks through it. */
+    SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX);
     {
         DWORD length=GetModuleFileNameW(NULL,base,COUNT(base));
         if (!length || length>=COUNT(base)) {
             MessageBoxW(NULL,L"Extraé TubeLiviano en una ruta más corta, por ejemplo E:\\TubeLiviano.",
-                        L"TubeLiviano 0.5",MB_OK|MB_ICONERROR);
+                        L"TubeLiviano " VERSION,MB_OK|MB_ICONERROR);
             return 1;
         }
     }

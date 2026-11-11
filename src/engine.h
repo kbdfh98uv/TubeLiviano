@@ -14,6 +14,8 @@ typedef struct {
     WCHAR exe[MAX_PATH];
     WCHAR base[MAX_PATH];
     BOOL xp;
+    DWORD os_major, os_minor, os_build;
+    BOOL loader_failed; /* Do not retry format probing after a DLL-loader failure. */
 } Engine;
 
 typedef struct {

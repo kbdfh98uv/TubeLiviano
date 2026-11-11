@@ -1,9 +1,51 @@
-# Validación de TubeLiviano 0.5
+# Validación de TubeLiviano 0.5.1
 
 El entregable es un **frontend Win32 x86**, compilado desde Linux con MinGW y CRT
 MSVCRT, dirigido a Windows XP SP3 y Windows 10/11. Se verificaron la arquitectura
 PE32, el subsistema 5.01 y la ausencia de runtime .NET. Eso **no equivale a haberlo
 ejecutado en XP**, ni certifica el paquete completo para ese sistema.
+
+## Cambios y regresiones de 0.5.1
+
+Se corrigió la regla que asignaba el motor XP a cualquier versión informada como
+anterior a Windows 10. Ahora se comprueban una función disponible desde Windows
+10 y la versión del `kernel32.dll` cargado. El motor XP requiere evidencia de un
+kernel nativo 5.1/5.2, sin señales contradictorias de un sistema posterior; una
+versión enmascarada por compatibilidad no basta. Vista/7/8 reciben un error claro
+y pueden usar el puente pegando un enlace.
+
+También se añadió manifiesto de compatibilidad con Windows moderno, se eliminan
+del entorno del hijo las variables `_MEIPASS2`, `_PYI_*` y `__COMPAT_LAYER`, y se
+conservan las demás variables, incluido proxy/certificados. Un fallo del cargador
+DLL se informa dentro de la aplicación y no dispara probing de formatos ni deja
+una cadena de avisos modales del cargador.
+
+- Política de selección: **21 casos nativos con ASan/UBSan aprobados**, incluidos
+  XP, Windows moderno, versiones enmascaradas y evidencia insuficiente.
+- Detección real en variante x64/Wine: **23 comprobaciones aprobadas**; detectó
+  `10.0.19043` y eligió el motor moderno.
+- Subprocesos Win32 en variante x64/Wine: **62 comprobaciones aprobadas**,
+  incluidas limpieza del entorno heredado, conservación de variables ajenas al
+  framework, estado de fallo DLL y cancelación de descendientes.
+- Parser de producción: **38 comprobaciones nativas con ASan/UBSan aprobadas**.
+- Reproducción de 0.5.1 con el perfil reducido x64: **144p, 240p, 360p y HTTP Range
+  aprobados**, con contadores de video, audio y cuadros mostrados positivos.
+- Interfaz Win32 de 0.5.1 en variante x64/Wine: **32 comprobaciones aprobadas**,
+  incluida la versión exacta en el título, resultados, perfiles, reintento,
+  conservación del enlace y cancelación/cierre con extracción pendiente.
+- El frontend x86 de 0.5.1 compiló con `-Werror`. Ninguna de estas ejecuciones x64
+  sustituye la prueba del binario x86 en el Windows del usuario.
+
+Las capturas reportadas muestran dependencias del framework XP (`KERNELxp.dll` y
+`ntext.dll`). Los motores conservan sus versiones upstream verificadas; **estos
+cambios no prueban que el framework incluido funcione en XP real ni que resuelvan
+un defecto interno de ese framework**. La versión/compilación exacta del equipo
+reportado y la prueba real siguen pendientes. Extraer la 0.5.1 en una carpeta
+nueva permite comprobar el nuevo número de versión y la selección mostrada.
+
+Los datos de subprocesos, UI y reproducción detallados a continuación corresponden
+a la regresión de **0.5.1 en la variante temporal x64**. Las pruebas de puente y
+QuickJS conservan su alcance indicado; ninguna certifica Windows XP real.
 
 ## Qué se ejecutó y dónde
 
@@ -28,9 +70,9 @@ suficiente que VLC abra un puerto, que exista un proceso o que el reproductor di
 | Comprobación | Resultado | Alcance |
 | --- | --- | --- |
 | Compilación del frontend x86 | Aprobada | PE32/i386, subsistema Windows 5.01, DLLs del sistema y libVLC cargado dinámicamente. |
-| Selección de motores y subprocesos | 56 comprobaciones aprobadas | Código Win32 ejecutado en la variante x64/Wine: JSON, Unicode, argumentos, perfiles, fallback, ausencia del motor seleccionado y terminación del hijo y nieto al cancelar. |
+| Selección de motores y subprocesos | 62 comprobaciones aprobadas | Variante x64/Wine de 0.5.1: JSON, Unicode, argumentos, perfiles, fallback, motor ausente, limpieza del entorno, fallos DLL y terminación del hijo y nieto al cancelar. |
 | Parser y escapado | 38 comprobaciones aprobadas | Código de producción extraído por el harness nativo, con ASan y UBSan. No sustituye una ejecución de los subprocesos en XP. |
-| Interfaz real | 32 comprobaciones aprobadas | Variante x64/Wine con extractor simulado: resultados Unicode, dos líneas, perfil predeterminado, enlace conservado al cambiar calidad/reintentar y cierre/cancelación de procesos descendientes. |
+| Interfaz real | 32 comprobaciones aprobadas | Variante 0.5.1 x64/Wine con extractor simulado: resultados Unicode, dos líneas, perfil predeterminado, enlace conservado al cambiar calidad/reintentar y cierre/cancelación de procesos descendientes. |
 | Puente | 6 pruebas aprobadas | FFmpeg real, tres perfiles, salida temprana desde fuente de 96 s, exclusión mutua, desconexión, parámetros y runtime JS. |
 | QuickJS-NG adaptado | Aprobado en variante x64 | JSON, Unicode, Uint8Array, BigInt, Promises y script UTF-8; el binario x86 recibió auditoría estática de imports, sin ejecución. |
 | YouTube en vivo | No ejecutado | El proxy del entorno rechazó `CONNECT` a `www.youtube.com` con HTTP 403. No se obtuvo un video real ni un desafío EJS real. |
@@ -41,13 +83,13 @@ suficiente que VLC abra un puerto, que exista un proceso o que el reproductor di
 
 Se generaron clips de ocho segundos con patrón animado y tono de 440 Hz: H.264
 baseline, YUV420p, 24 fps, AAC mono, MP4 con `faststart`. Se reprodujeron con el
-perfil reducido de plugins de VLC de la variante temporal x64.
+perfil reducido de plugins de VLC de la variante temporal x64 de 0.5.1.
 
 | Perfil | Video decodificado | Audio decodificado | Cuadros mostrados | Búferes de audio reproducidos | Resultado |
 | --- | ---: | ---: | ---: | ---: | --- |
-| 144p | 134 | 238 | 44 | 119 | Aprobado |
-| 240p | 182 | 346 | 63 | 173 | Aprobado |
-| 360p | 170 | 320 | 66 | 160 | Aprobado |
+| 144p | 206 | 388 | 80 | 194 | Aprobado |
+| 240p | 230 | 432 | 96 | 216 | Aprobado |
+| 360p | 230 | 432 | 97 | 216 | Aprobado |
 
 Los informes se tomaron aproximadamente a los 5,5 s; no representan el total de
 ocho segundos. El modo automatizado usa un dispositivo de audio dummy: comprueba
@@ -62,13 +104,13 @@ de Wine tampoco sirven para predecir la tasa de cuadros en un Atom.
 `Range: bytes=0-`; el servidor respondió con contenido parcial. La aplicación abrió
 esa URL directamente, sin descargarla a un archivo temporal.
 
-En la ejecución final del perfil reducido:
+En la ejecución del perfil reducido de la 0.5.1:
 
-- Primer cuadro observado: **229.376 bytes leídos**, **5,18 %** del archivo, según
+- Primer cuadro observado: **137.216 bytes leídos**, **3,10 %** del archivo, según
   el contador de entrada de libVLC en el primer sondeo con cuadros mostrados.
-- A los 4,572 s: 122 cuadros de video decodificados, 234 bloques de audio
-  decodificados, 20 cuadros mostrados y 117 búferes de audio reproducidos.
-- Total enviado por el origen hasta detener la prueba: **284.672 bytes**, **6,43 %**
+- A los 4,560 s: 146 cuadros de video decodificados, 274 bloques de audio
+  decodificados, 47 cuadros mostrados y 137 búferes de audio reproducidos.
+- Total enviado por el origen hasta detener la prueba: **280.576 bytes**, **6,34 %**
   del archivo. No se recibió el 100 % antes de reproducir.
 
 Esto prueba salida temprana y uso de Range bajo esas condiciones. El sondeo tiene
@@ -115,6 +157,8 @@ python3 scripts/fetch-deps.py --sources
 make clips
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 tests/engine_native_test.py
+cc -std=c99 -fsanitize=address,undefined tests/os_detection_test.c src/os_detect.c -o build/os_detection_native
+build/os_detection_native
 # Solo con Wine x86 funcional; en Windows se puede usar el modo self-test directo.
 WINE=wine python3 tests/playback.py
 python3 scripts/package.py --slim-vlc

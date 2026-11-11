@@ -24,6 +24,14 @@ int wmain(int argc, WCHAR **argv)
     if (has(argc, argv, L"--hold")) { Sleep(30000); return 0; }
     if (has(argc, argv, L"-F")) return 90;
     if (has(argc, argv, L"--dump-json")) {
+        if (!wcscmp(target,L"ytsearch12:loaderfail")) ExitProcess(0xC0000139UL);
+        if (!wcscmp(target,L"ytsearch12:cleanenv")) {
+            WCHAR value[32];
+            if (GetEnvironmentVariableW(L"_MEIPASS2",value,32) ||
+                GetEnvironmentVariableW(L"_PYI_ARCHIVE_FILE",value,32) ||
+                GetEnvironmentVariableW(L"__COMPAT_LAYER",value,32) ||
+                !GetEnvironmentVariableW(L"TL_KEEP_ME",value,32) || wcscmp(value,L"kept")) return 95;
+        }
         if (!wcscmp(target, L"ytsearch12:hang")) { Sleep(30000); return 0; }
         if (!wcscmp(target, L"ytsearch12:spawnchild")) {
             WCHAR exe[MAX_PATH], command[MAX_PATH + 20];

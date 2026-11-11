@@ -71,8 +71,23 @@ int wmain(void)
     CHECK(!engine_init(&selected, folder, error, 2048)); /* Never substitute the other OS engine. */
     CHECK(CopyFileW(exe, file, TRUE));
 
+    SetEnvironmentVariableW(L"_MEIPASS2",L"C:\\stale\\_MEI");
+    SetEnvironmentVariableW(L"_PYI_ARCHIVE_FILE",L"C:\\stale\\yt-dlp.exe");
+    SetEnvironmentVariableW(L"__COMPAT_LAYER",L"WINXPSP3");
+    SetEnvironmentVariableW(L"TL_KEEP_ME",L"kept");
+    CHECK(engine_search(&engine,L"cleanenv",event,result,&count,error,2048));
+    CHECK(count==2);
+    CHECK(GetEnvironmentVariableW(L"_MEIPASS2",file,MAX_PATH)!=0); /* Parent untouched. */
+    SetEnvironmentVariableW(L"_MEIPASS2",NULL);
+    SetEnvironmentVariableW(L"_PYI_ARCHIVE_FILE",NULL);
+    SetEnvironmentVariableW(L"__COMPAT_LAYER",NULL);
+    SetEnvironmentVariableW(L"TL_KEEP_ME",NULL);
+    CHECK(!engine_search(&engine,L"loaderfail",event,result,&count,error,2048));
+    CHECK(engine.loader_failed && wcsstr(error,L"DLL"));
+
     CHECK(engine_search(&engine, L"comillas \" barra \\\\ fin\\", event, result, &count, error, 2048));
     CHECK(count == 2);
+    CHECK(!engine.loader_failed);
     CHECK(!wcscmp(result[0].title, L"caf\u00e9 \xd83d\xde80 \"ok\""));
     CHECK(!wcscmp(result[0].channel, L"Espa\u00f1ol"));
     CHECK(result[0].duration == 96);

@@ -5,6 +5,7 @@
 #define _UNICODE
 #endif
 #include "engine.h"
+#include "os_detect.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,23 +24,19 @@ static void message(WCHAR *out, size_t cap, const WCHAR *text)
 
 BOOL engine_init(Engine *engine, const WCHAR *base, WCHAR *error, size_t cap)
 {
-    typedef LONG (WINAPI *RtlVersionFn)(OSVERSIONINFOW *);
-    RtlVersionFn version_fn;
-    OSVERSIONINFOW version;
+    OsInfo os;
     size_t n;
     if (!engine || !base || !(n = wcslen(base)) || n > MAX_PATH - 40) {
         message(error, cap, L"Ruta portable demasiado larga (use una carpeta corta).");
         return FALSE;
     }
     ZeroMemory(engine, sizeof(*engine));
-    ZeroMemory(&version, sizeof(version));
-    version.dwOSVersionInfoSize = sizeof(version);
-    version_fn = (RtlVersionFn)(void *)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion");
-    if (!version_fn || version_fn(&version) != 0) {
-        message(error, cap, L"No se pudo detectar la version real de Windows; no se cargara un motor al azar.");
-        return FALSE;
+    {
+        BOOL detected=os_detect(&os,error,cap);
+        engine->os_major=os.major; engine->os_minor=os.minor; engine->os_build=os.build;
+        if (!detected) return FALSE;
     }
-    engine->xp = version.dwMajorVersion < 10;
+    engine->xp=os.xp;
     wcscpy(engine->base, base);
     while (n > 3 && (engine->base[n - 1] == L'\\' || engine->base[n - 1] == L'/')) engine->base[--n] = 0;
     wcscpy(engine->exe, engine->base);
@@ -106,6 +103,30 @@ static BOOL drain(HANDLE pipe, char *out, DWORD limit, DWORD *used, BOOL truncat
     return TRUE;
 }
 
+/* A one-file extractor is an independent application. Never inherit another
+ * PyInstaller application's extraction directory or Windows compatibility layer.
+ * Keep proxy, certificates and all other user variables unchanged and private. */
+static WCHAR *child_environment(void)
+{
+    WCHAR *original=GetEnvironmentStringsW(), *result, *dest;
+    const WCHAR *line;
+    size_t capacity=2;
+    if (!original) return NULL;
+    for (line=original; *line; line+=wcslen(line)+1) capacity+=wcslen(line)+1;
+    result=(WCHAR *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,capacity*sizeof(WCHAR));
+    if (!result) { FreeEnvironmentStringsW(original); return NULL; }
+    dest=result;
+    for (line=original; *line; line+=wcslen(line)+1) {
+        size_t length=wcslen(line)+1;
+        if (!_wcsnicmp(line,L"_PYI_",5) || !_wcsnicmp(line,L"_MEIPASS2=",10) ||
+            !_wcsnicmp(line,L"__COMPAT_LAYER=",15)) continue;
+        memcpy(dest,line,length*sizeof(WCHAR)); dest+=length;
+    }
+    *dest=0;
+    FreeEnvironmentStringsW(original);
+    return result;
+}
+
 static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
                 HANDLE cancel, DWORD timeout, char **output, WCHAR *error, size_t cap)
 {
@@ -116,11 +137,13 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     HANDLE readout = NULL, writeout = NULL, readerr = NULL, writeerr = NULL;
     HANDLE input = INVALID_HANDLE_VALUE, job = NULL;
     WCHAR *command = NULL;
+    WCHAR *environment = NULL;
     char *out = NULL, *err = NULL;
     DWORD outlen = 0, errlen = 0, start, exitcode = 1;
     size_t i, used = 0;
     BOOL ok = FALSE, started = FALSE;
     *output = NULL;
+    engine->loader_failed=FALSE;
     ZeroMemory(&process, sizeof(process));
     command = (WCHAR *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, COMMAND_CAP * sizeof(WCHAR));
     out = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, OUTPUT_LIMIT + 1);
@@ -129,6 +152,8 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
         message(error, cap, L"Memoria insuficiente para iniciar el motor.");
         goto cleanup;
     }
+    environment=child_environment();
+    if (!environment) { message(error,cap,L"No se pudo preparar el entorno independiente del motor."); goto cleanup; }
     if (!append_arg(command, &used, engine->exe)) goto too_long;
     for (i = 0; i < argc; ++i) if (!append_arg(command, &used, args[i])) goto too_long;
     if (cancel && WaitForSingleObject(cancel, 0) == WAIT_OBJECT_0) {
@@ -161,9 +186,13 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     startup.wShowWindow = SW_HIDE;
     startup.hStdInput = input; startup.hStdOutput = writeout; startup.hStdError = writeerr;
     if (!CreateProcessW(engine->exe, command, NULL, NULL, TRUE,
-                        CREATE_NO_WINDOW | CREATE_SUSPENDED, NULL, engine->base, &startup, &process)) {
+                        CREATE_NO_WINDOW | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+                        environment, engine->base, &startup, &process)) {
         if (GetLastError() == ERROR_BAD_EXE_FORMAT)
+        {
+            engine->loader_failed=TRUE;
             message(error, cap, L"Motor incompatible: compruebe que ambos motores sean x86 y el motor XP tenga su framework.");
+        }
         else
             message(error, cap, L"No se pudo iniciar yt-dlp. Extraiga el ZIP completo y revise antivirus/permisos.");
         goto cleanup;
@@ -200,6 +229,14 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     GetExitCodeProcess(process.hProcess, &exitcode);
     if (exitcode != 0) {
         WCHAR detail[1024];
+        if (exitcode==0xC0000139UL || exitcode==0xC0000135UL || exitcode==0xC000007BUL) {
+            engine->loader_failed=TRUE;
+            _snwprintf(detail,1024,L"Motor %ls: fallo DLL 0x%08lX en Windows %lu.%lu. Extraiga el ZIP completo en una carpeta nueva, sin mezclar motores; tambien puede usar Puente.",
+                       engine->xp ? L"XP" : L"oficial",(unsigned long)exitcode,
+                       (unsigned long)engine->os_major,(unsigned long)engine->os_minor);
+            message(error,cap,detail);
+            goto cleanup;
+        }
         int chars = MultiByteToWideChar(CP_UTF8, 0, err, (int)(errlen > 900 ? 900 : errlen), detail, 1023);
         detail[chars > 0 ? chars : 0] = 0;
         if (chars > 0) message(error, cap, detail);
@@ -222,6 +259,7 @@ cleanup:
     if (readerr) CloseHandle(readerr);
     if (writeerr) CloseHandle(writeerr);
     if (command) HeapFree(GetProcessHeap(), 0, command);
+    if (environment) HeapFree(GetProcessHeap(), 0, environment);
     if (err) HeapFree(GetProcessHeap(), 0, err);
     if (out) HeapFree(GetProcessHeap(), 0, out);
     return ok;

@@ -14,7 +14,7 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.5'
+VERSION = '0.5.1'
 
 # Minimal multimedia profile: native HTTP/TLS, MP4/MPEG-TS, H264/AAC/MP3,
 # software chroma conversion, waveOut/DirectSound and GDI/DirectX video output.

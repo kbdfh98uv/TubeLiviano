@@ -1,4 +1,4 @@
-# TubeLiviano 0.5 · Win32 x86 portable
+# TubeLiviano 0.5.1 · Win32 x86 portable
 
 Cliente pequeño escrito en C para PCs antiguas: ventana Win32 Unicode, VLC 3
 embebido, buscador y tres perfiles **144p · Mínimo**, **240p · Liviano**
@@ -8,10 +8,11 @@ real todavía requieren pruebas en ese hardware.** Ver [validación](docs/VALIDA
 
 ## Extraer y usar
 
-1. Extraé **todo** `TubeLiviano_Portable_0.5_x86.zip` a una carpeta corta, por
-   ejemplo `E:\TubeLiviano`. No ejecutes el EXE dentro del ZIP. Podés usar pendrive;
+1. Extraé **todo** `TubeLiviano_Portable_0.5.1_x86.zip` a una carpeta corta, por
+   ejemplo `E:\TubeLiviano051`. Usá una carpeta nueva; no copies encima de la 0.5 ni
+   mezcles DLLs o motores de otra extracción. No ejecutes el EXE dentro del ZIP. Podés usar pendrive;
    no necesita instalación, permisos de administrador, .NET ni navegador embebido.
-2. Abrí `TubeLiviano.exe`. La versión **0.5** aparece en el título de la ventana.
+2. Abrí `TubeLiviano.exe`. La versión **0.5.1** aparece en el título de la ventana.
 3. Pulsá **Probar imagen y audio**: aparecen un patrón animado y un tono de 440 Hz.
    Funciona sin Internet. Seleccioná cada calidad para probar sus clips respectivos.
 4. Escribí un título y pulsá **Buscar** o Enter. Cada resultado muestra título en
@@ -53,12 +54,25 @@ source/                         Código propio, compilación, puente y pruebas
 licenses/                       Licencias y hashes de terceros
 ```
 
-Se consulta la versión real con `RtlGetVersion`, evitando las versiones ficticias
-por falta de manifiesto. En Windows 10/11 **solo** se elige `engines/modern`; en XP
-y sistemas anteriores a Windows 10 se usa `engines/xp`. Nunca se prueba el motor
-XP como fallback en Windows moderno. Mantené las carpetas separadas. No se
-descargan componentes al iniciar ni se usa el directorio de trabajo como raíz:
-los recursos se ubican respecto al EXE.
+La 0.5.1 comprueba las funciones del sistema y la versión del `kernel32.dll`
+cargado, además de consultar `RtlGetVersion`. Así una versión informada por un
+modo de compatibilidad no basta para elegir el framework XP. La ventana muestra
+la versión detectada y el motor seleccionado.
+
+En Windows 10/11 **solo** se elige `engines/modern`. `engines/xp` se reserva para
+un kernel XP nativo 5.1/5.2 identificado sin evidencia contradictoria. Windows
+Vista/7/8 no se envían al framework XP: se muestra un error y se puede usar Puente
+pegando el enlace. Nunca se sustituye un motor ausente por el de la otra carpeta.
+Si no se puede identificar el sistema de forma segura, no se adivina un motor.
+
+El subproceso se inicia sin variables heredadas de extracción PyInstaller ni la
+variable `__COMPAT_LAYER`; conserva las variables de proxy y certificados. Un
+fallo de carga de DLL se informa en la ventana, sin reintentar una verificación de
+formatos que no puede corregirlo. Esto **no certifica el framework XP en un equipo
+real**: la compatibilidad de ese motor sigue requiriendo prueba en XP.
+
+No se descargan componentes al iniciar ni se usa el directorio de trabajo como
+raíz: los recursos se ubican respecto al EXE.
 
 El frontend no incorpora Python. Los builds upstream de yt-dlp **sí empaquetan su
 propio intérprete**; esto es inherente a los ejecutables solicitados y pesa más que
@@ -77,7 +91,8 @@ lecturas de 16 KiB, frente al prefetch predeterminado de VLC de 16 MiB.
 
 Solo si falla la resolución inicial o VLC no abre el stream se repite una vez con
 `--check-formats`. No se ejecuta `-F` antes de cada video. Tras el segundo fallo
-queda visible Reintentar y el enlace se conserva. Las operaciones de yt-dlp tienen
+queda visible Reintentar y el enlace se conserva. Los fallos de carga de DLL no
+provocan ese segundo intento de formatos. Las operaciones de yt-dlp tienen
 tiempo límite y salida acotada en memoria. El puente usa MPEG-TS en vivo, sin
 buscar por Range; el modo directo aprovecha Range del servidor original.
 
@@ -99,6 +114,8 @@ python3 scripts/fetch-deps.py --sources
 make clips
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 tests/engine_native_test.py
+cc -std=c99 -fsanitize=address,undefined tests/os_detection_test.c src/os_detect.c -o build/os_detection_native
+build/os_detection_native
 # Con Windows o Wine de 32 bits realmente funcional y servidor X:
 WINE=wine python3 tests/playback.py
 python3 scripts/package.py --slim-vlc
@@ -125,7 +142,7 @@ pruebas de reproducción automatizadas no equivalen a medir fluidez en el Atom.
 
 Código propio **MIT**, incluido en `source/`. VLC, yt-dlp, QuickJS y sus
 dependencias mantienen sus licencias; ver [THIRD_PARTY.md](THIRD_PARTY.md). El
-compañero `TubeLiviano_ThirdParty_Sources_0.5.zip` contiene fuentes upstream;
+compañero `TubeLiviano_ThirdParty_Sources_0.5.1.zip` contiene fuentes upstream;
 conservá sus avisos y requisitos al redistribuir.
 
 Los dos motores suman aproximadamente **38 MB antes de VLC**. Con versiones

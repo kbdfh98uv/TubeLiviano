@@ -10,8 +10,8 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-PORTABLE = DIST / "TubeLiviano_Portable_0.5_x86.zip"
-SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.zip"
+PORTABLE = DIST / "TubeLiviano_Portable_0.5.1_x86.zip"
+SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.1.zip"
 PREFIX = "TubeLiviano/"
 
 
@@ -51,6 +51,8 @@ class PortableArchive(unittest.TestCase):
             "vlc/libvlc.dll", "vlc/libvlccore.dll", "vlc/certs/cacert.pem",
             "engines/modern/yt-dlp.exe", "engines/xp/yt-dlp.exe", "runtimes/qjs.exe",
             "source/src/main.c", "source/src/player.c", "source/src/engine.c",
+            "source/src/os_detect.c", "source/src/os_detect.h", "source/src/app.manifest",
+            "source/tests/os_detection_test.c",
             "source/Makefile", "source/LICENSE", "source/docs/VALIDACION.md",
             "source/bridge/server.py", "source/bridge/README.md",
             "source/scripts/fetch-deps.py", "source/scripts/package.py",
@@ -100,7 +102,8 @@ class PortableArchive(unittest.TestCase):
     def test_own_source_license_and_readme_links_are_current(self):
         self.assertIn(b"MIT License", self.read("LICENSE"))
         self.assertEqual(self.read("LICENSE"), self.read("source/LICENSE"))
-        for relative in ("src/main.c", "src/player.c", "src/engine.c", "docs/VALIDACION.md"):
+        for relative in ("src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c",
+                         "src/os_detect.h", "src/app.manifest", "docs/VALIDACION.md"):
             with self.subTest(relative=relative):
                 self.assertEqual(self.read("source/" + relative), (ROOT / relative).read_bytes())
         for readme in ("README.md", "source/README.md"):
@@ -115,6 +118,9 @@ class PortableArchive(unittest.TestCase):
     def test_source_companion_and_external_report(self):
         self.assertTrue(SOURCES.is_file(), "Third-party source companion is missing")
         report = json.loads((DIST / "package-report.json").read_text())
+        self.assertEqual(report["version"], "0.5.1")
+        self.assertEqual(report["portable"]["file"], PORTABLE.name)
+        self.assertEqual(report["upstream_sources"]["file"], SOURCES.name)
         self.assertEqual(report["portable"]["bytes"], PORTABLE.stat().st_size)
         self.assertEqual(report["portable"]["sha256"], sha256(PORTABLE.read_bytes()))
         self.assertEqual(report["upstream_sources"]["bytes"], SOURCES.stat().st_size)
