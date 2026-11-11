@@ -1,0 +1,2 @@
+b65ca13e44680f2bfe8b602b4d92a6dab13ee4e2805d0e12118bd25a9ae8c576  TubeLiviano_Portable_0.5_x86.zip
+e47a59ff6f68f9ca2614b1667c7318ef2df4888a7928be6a59f009c4c24b49ea  TubeLiviano_ThirdParty_Sources_0.5.zip
