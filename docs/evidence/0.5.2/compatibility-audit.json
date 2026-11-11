@@ -1,0 +1,75 @@
+{
+  "modern": {
+    "bytes": 18618344,
+    "sha256": "c0407c66361f50a99e10949ae882ea2ad7de9086b75d226d8fd88da4f74828fa",
+    "matches_pin": true,
+    "machine": "0x14c",
+    "pe_magic": "0x10b"
+  },
+  "xp": {
+    "bytes": 19317573,
+    "sha256": "b039efe2d457971750a0580a63097e59922a337c2945f46a7de0c5ac87c75c12",
+    "matches_pin": true,
+    "machine": "0x14c",
+    "pe_magic": "0x10b"
+  },
+  "published_exe_matches_build": true,
+  "TubeLiviano.exe": {
+    "dlls": [
+      "GDI32.dll",
+      "KERNEL32.dll",
+      "msvcrt.dll",
+      "SHELL32.dll",
+      "USER32.dll"
+    ],
+    "os_subsystem": [
+      "MajorOSystemVersion\t5",
+      "MinorOSystemVersion\t1",
+      "MajorSubsystemVersion\t5",
+      "MinorSubsystemVersion\t1"
+    ]
+  },
+  "vlc/libvlc.dll": {
+    "dlls": [
+      "libvlccore.dll",
+      "ADVAPI32.dll",
+      "KERNEL32.dll",
+      "msvcrt.dll"
+    ],
+    "os_subsystem": [
+      "MajorOSystemVersion\t4",
+      "MinorOSystemVersion\t0",
+      "MajorSubsystemVersion\t4",
+      "MinorSubsystemVersion\t0"
+    ]
+  },
+  "vlc/libvlccore.dll": {
+    "dlls": [
+      "ADVAPI32.dll",
+      "KERNEL32.dll",
+      "msvcrt.dll",
+      "SHELL32.dll",
+      "USER32.dll",
+      "WS2_32.dll"
+    ],
+    "os_subsystem": [
+      "MajorOSystemVersion\t4",
+      "MinorOSystemVersion\t0",
+      "MajorSubsystemVersion\t4",
+      "MinorSubsystemVersion\t0"
+    ]
+  },
+  "runtimes/qjs.exe": {
+    "dlls": [
+      "KERNEL32.dll",
+      "msvcrt.dll"
+    ],
+    "os_subsystem": [
+      "MajorOSystemVersion\t4",
+      "MinorOSystemVersion\t0",
+      "MajorSubsystemVersion\t5",
+      "MinorSubsystemVersion\t1"
+    ]
+  },
+  "manifest_parse": "{urn:schemas-microsoft-com:asm.v1}assembly"
+}

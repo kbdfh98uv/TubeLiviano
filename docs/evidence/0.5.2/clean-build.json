@@ -1,0 +1,33 @@
+{
+  "base_commit": "6b7357c3c37f56bfb31ef67fc16abeda7207c67c",
+  "builds": [
+    {
+      "run": 1,
+      "directory": "/tmp/tubeliviano-clean-1-qqiej4fm",
+      "command": [
+        "make",
+        "-B",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "exit_code": 0,
+      "log": "build/reports/session-0.5.2/clean-build-1.log",
+      "bytes": 54784,
+      "sha256": "3146961306d4aafb6a35c6a67534cbf6d7e8abf80ebf86ebb613de57ff105790"
+    },
+    {
+      "run": 2,
+      "directory": "/tmp/tubeliviano-clean-2-2x8nll5d",
+      "command": [
+        "make",
+        "-B",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "exit_code": 0,
+      "log": "build/reports/session-0.5.2/clean-build-2.log",
+      "bytes": 54784,
+      "sha256": "3146961306d4aafb6a35c6a67534cbf6d7e8abf80ebf86ebb613de57ff105790"
+    }
+  ],
+  "identical": true,
+  "existing_binary_sha256": "3146961306d4aafb6a35c6a67534cbf6d7e8abf80ebf86ebb613de57ff105790"
+}
