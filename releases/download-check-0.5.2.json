@@ -1,0 +1,8 @@
+{
+  "http_status": 200,
+  "content_length": "53669582",
+  "expected_bytes": 53669582,
+  "download_url": "https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.2_x86.zip",
+  "artifact_commit": "41de10308c878a73559fae0066858390c1772bcd",
+  "remote_ref_confirmed": "refs/heads/main"
+}

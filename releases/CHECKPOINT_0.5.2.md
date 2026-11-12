@@ -14,7 +14,7 @@ su contenido para evitar que el hash dependa de sí mismo.
 | Tests del paquete/host | Aprobado | 30 tests, cero omitidos; `host-tests-0.5.2.txt` | Cerrado |
 | Documentación/checklist | Hecho | README, VALIDACION, RELEASE_NOTES y PRUEBAS_XP_ATOM | Ejecutar A1–A4 y motor --version |
 | ZIPs reproducibles | Hecho | Dos empaquetados byte a byte idénticos; datos debajo | Verificar descarga |
-| Publicación Git | Archivos preparados para main | Commit de artefactos y `git push origin HEAD:refs/heads/main` explícito | Confirmar main remoto |
+| Publicación Git | Publicado en main | `41de10308c878a73559fae0066858390c1772bcd`, push explícito confirmado por `git ls-remote` | Cerrado |
 
 ## Archivos
 
@@ -62,3 +62,15 @@ Extraer completo en carpeta nueva, confirmar 0.5.2 y motor XP; ejecutar A1–A4
 (144/240/360p, sonido normal y batch) y `engines\xp\yt-dlp.exe --version`.
 Guardar los JSON y el error exacto si existe. Después probar búsqueda, Cancelar,
 Reintentar, preferencias, y medir 240p en el Atom según la ficha física.
+
+## Confirmación de publicación
+
+El push de código y artefactos terminó con salida cero; GitHub confirmó
+`1d2a15d..41de103 HEAD -> main`. `git ls-remote origin refs/heads/main` devolvió
+`41de10308c878a73559fae0066858390c1772bcd`. La advertencia por superar los 50 MB
+recomendados no impidió el push.
+
+La URL directa del portable respondió **HTTP 200** y `Content-Length: 53669582`,
+igual al ZIP verificado. La comprobación HEAD confirma acceso y tamaño; el SHA-256
+publicado permite comprobar la descarga completa. Evidencia en
+`download-check-0.5.2.json`. Este cierre posterior no modifica los ZIP ni su código.
