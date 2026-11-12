@@ -1,0 +1,31 @@
+{
+  "verified_at_utc": "2026-11-12T12:07:58.126199+00:00",
+  "artifact_commit": "a3692002883f80c9e12f6b0870fbe6d1eff6ead6",
+  "url": "https://raw.githubusercontent.com/kbdfh98uv/TubeLiviano/a3692002883f80c9e12f6b0870fbe6d1eff6ead6/releases/TubeLiviano_Portable_0.5.4_x86.zip",
+  "command": [
+    "curl",
+    "--fail",
+    "--location",
+    "--silent",
+    "--show-error",
+    "--max-time",
+    "180",
+    "--continue-at",
+    "-",
+    "--dump-header",
+    "build/reports/session-0.5.4/download-final-headers.txt",
+    "--output",
+    "build/reports/session-0.5.4/downloaded-0.5.4.zip",
+    "--write-out",
+    "%{http_code} %{size_download}",
+    "https://raw.githubusercontent.com/kbdfh98uv/TubeLiviano/a3692002883f80c9e12f6b0870fbe6d1eff6ead6/releases/TubeLiviano_Portable_0.5.4_x86.zip"
+  ],
+  "http_code": 206,
+  "resumed_prefix_bytes": 26528512,
+  "bytes": 54001394,
+  "sha256": "bfdf788d52864c102cfc44b08e9f006bd7f20c32b3b2f6e86789ccbc22474ca1",
+  "expected_sha256": "bfdf788d52864c102cfc44b08e9f006bd7f20c32b3b2f6e86789ccbc22474ca1",
+  "zip_crc_passed": true,
+  "passed": true,
+  "note": "Initial main-branch GET timed out after 60s at 26528512 bytes. That prefix was verified byte-identical to this archive before resuming at the immutable artifact commit."
+}

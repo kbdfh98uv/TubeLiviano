@@ -12,7 +12,7 @@ Código: `9e29bdd260d4c6360b38277737a2751c26e40e67`. Base publicada: `bdd14aa` (
 | Regresiones | Aprobadas | 1692 checks x64/Wine + 31 tests host/ZIP sin omitir; plugin 70 y parser 38 adicionales | Pruebas físicas |
 | VLC real | Aprobado bajo Wine | Clips 144/240/360, fullscreen visible y Range parcial | Sonido/fluidez reales |
 | ZIP | Reproducible | Dos empaquetados idénticos; hashes debajo | Descargar/verificar |
-| GitHub | Commit de artefactos y push explícito a main | `git push origin HEAD:refs/heads/main`; comprobar HEAD remoto tras push | No usar Publicar del entorno |
+| GitHub | Publicado y descargado | Artefactos `a369200`, main remoto verificado, descarga completa SHA-256/CRC aprobada | Extraer y probar en XP/Atom |
 
 La ejecución integrada final está en `docs/evidence/0.5.4/final-validation.json`.
 Su app x64 es `d7594c5b24ee9133e4b632ec14186472a812f2842f8b1ebd3c62c692ef5ff4b0`.
@@ -75,3 +75,12 @@ Siguiente mejor acción: extraer completo en una carpeta nueva; ejecutar L1–L7
 I1–I3 y W1–W5 de `source/docs/PRUEBAS_MANUALES_0.5.4.md`. Primero probar imagen y
 audio offline; después buscar y seleccionar un resultado antes de 12 s. Comparar
 primera apertura/reapertura/Reintentar en tres repeticiones y observar procesos y RAM.
+
+## Comprobación de publicación
+
+Artefactos publicados en `a3692002883f80c9e12f6b0870fbe6d1eff6ead6`, mediante
+commit y push explícitos a main. El `ls-remote` posterior confirmó ese HEAD.
+`download-check-0.5.4.json` conserva la descarga desde ese commit inmutable:
+54001394 bytes, SHA-256 y CRC del ZIP aprobados. La descarga inicial superó el
+plazo de 60 s; se verificó que su prefijo coincidía con el archivo final y se
+reanudó por HTTP 206. No se confundió una respuesta parcial con un ZIP completo.
