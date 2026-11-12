@@ -1,27 +1,31 @@
-# Descargar TubeLiviano 0.5.2
+# Descargar TubeLiviano 0.5.3
 
-**[Descargar TubeLiviano_Portable_0.5.2_x86.zip (53,67 MB)](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.2_x86.zip)**
+**[Descargar TubeLiviano_Portable_0.5.3_x86.zip (53,89 MB)](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.3_x86.zip)**
 
 Extraé todo en una carpeta nueva y abrí `TubeLiviano.exe`; el título debe mostrar
-**0.5.2**. No abras el EXE desde dentro del ZIP ni mezcles dependencias anteriores.
+**0.5.3**. Incluye VLC 3 x86, ambos motores separados, clips, prueba offline y
+fuentes MIT. No mezclar DLLs anteriores ni ejecutar dentro del ZIP.
 
-Nueva interfaz GDI: Inicio con buscador central, tema oscuro/claro, Resultados y
-Configuración con calidad, búfer, hilos, audio, red y preferencias portables.
-El frontend x86 ocupa **84.992 bytes**. Incluye VLC, motores separados XP/moderno,
-QuickJS, tres clips offline, `Probar_offline.cmd` y código propio MIT.
+- Botón Pantalla completa en Resultados, F11 para alternar y Esc para volver
+  conservando reproducción/pausa; barra inferior con Pausa, Cancelar y Volver.
+- Configuración: cinco presets Mínimo, Atom, Conexión inestable, 360p y Puente.
+  Elegir → Preparar → Guardar; Cancelar descarta el borrador.
+- EXE x86: **89.088 bytes**; controles Win32/GDI y 240p predeterminado.
 
-Prueba automatizada: 953 comprobaciones Win32 en variante x64/Wine, clips
-144/240/360p y Range, más 30 tests de host/ZIP. **[NO EJECUTADO] XP/Atom físicos**:
-el framework XP aún requiere prueba; no se declara reparado sin ejecutarlo allí.
+[Captura de fullscreen](../docs/images/0.5.3/fullscreen.png) ·
+[Presets](../docs/images/0.5.3/settings-presets.png) ·
+[Guía y pruebas físicas](../docs/PRUEBAS_0.5.3.md) ·
+[Cierre/evidencia](CHECKPOINT_0.5.3.md)
 
-[Instrucciones](../README.md) · [Capturas](../docs/images/0.5.2/home-dark.png) ·
-[Checklist XP/Atom](../docs/PRUEBAS_XP_ATOM.md) · [Cierre y evidencia](CHECKPOINT_0.5.2.md)
+Pruebas: 1296 comprobaciones combinadas sobre la misma app x64/Wine y 30 tests
+host/ZIP aprobados. No certifican XP/Atom físicos: el framework XP y la fluidez
+siguen pendientes de comprobar allí. Los medios automatizados usan audio dummy.
 
-[Fuentes upstream de terceros (45,71 MB)](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_ThirdParty_Sources_0.5.2.zip).
-Las dependencias conservan sus licencias y las limitaciones de fuentes descritas
-en [THIRD_PARTY.md](../THIRD_PARTY.md). Se conservan los ZIP 0.5 y 0.5.1.
+[Fuentes upstream de terceros (45,71 MB)](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_ThirdParty_Sources_0.5.3.zip).
+Las dependencias conservan sus licencias y límites de fuentes descritos en
+[THIRD_PARTY.md](../THIRD_PARTY.md). Se mantienen todos los ZIP anteriores.
 
-[SHA-256 de los archivos](SHA256SUMS.txt). Desde esta carpeta con GNU coreutils:
+[Sumas SHA-256](SHA256SUMS.txt). Con GNU coreutils en esta carpeta:
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS.txt
