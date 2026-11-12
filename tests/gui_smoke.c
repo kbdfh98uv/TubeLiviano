@@ -113,7 +113,7 @@ int wmain(int argc,WCHAR **argv) {
      * children. Wait for the final control, not just the visible parent. */
     start=GetTickCount();
     while(!GetDlgItem(app,OFFLINE) && GetTickCount()-start<5000)Sleep(20);
-    GetWindowTextW(app,title,256); CHECK(wcsstr(title,L"0.5.3")!=NULL);
+    GetWindowTextW(app,title,256); CHECK(wcsstr(title,L"0.5.4")!=NULL);
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCOUNT,0,0)==3);
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==1);
     CHECK(SendMessageW(GetDlgItem(app,MODE),CB_GETCOUNT,0,0)==2);

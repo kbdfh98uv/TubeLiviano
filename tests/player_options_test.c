@@ -36,6 +36,111 @@ static void check_options(int cache,int prefetch,int threads,int loudness,int mu
     CHECK(value(5)==loudness); CHECK(value(6)==mute);
     CHECK(value(7)==cache); CHECK(value(12)==threads);
 }
+static BOOL wait_value(int key, LONG wanted)
+{
+    DWORD start=GetTickCount();
+    do { if(value(key)==wanted)return TRUE; Sleep(10); }while(GetTickCount()-start<5000);
+    return FALSE;
+}
+static void async_missing_retry(const WCHAR *source)
+{
+    WCHAR temp[MAX_PATH],base[MAX_PATH],folder[MAX_PATH],file[MAX_PATH],original[MAX_PATH],error[512];
+    DWORD start;
+    CHECK(GetTempPathW(MAX_PATH,temp)>0);
+    CHECK(GetTempFileNameW(temp,L"tla",0,base)!=0); CHECK(DeleteFileW(base));
+    CHECK(CreateDirectoryW(base,NULL));
+    start=GetTickCount(); CHECK(player_prepare(base,NULL,TRUE,error,512));
+    CHECK(GetTickCount()-start<150); CHECK(wait_state(7));
+    CHECK(player_startup_error(error,512)); CHECK(wcsstr(error,L"libvlc.dll")!=NULL);
+    /* Fix the fixture folder in place and retry on the same controller. */
+    _snwprintf(folder,MAX_PATH,L"%ls\\vlc",base); CHECK(CreateDirectoryW(folder,NULL));
+    _snwprintf(file,MAX_PATH,L"%ls\\libvlc.dll",folder);
+    _snwprintf(original,MAX_PATH,L"%ls\\vlc\\libvlc.dll",source);
+    CHECK(CopyFileW(original,file,TRUE));
+    CHECK(player_prepare(base,NULL,TRUE,error,512));
+    CHECK(player_open("fixed-loader.mp4",NULL,TRUE,error,512)); CHECK(wait_state(3));
+    CHECK(!player_startup_error(error,512));
+    player_close(); CHECK(wait_closed());
+    CHECK(DeleteFileW(file)); CHECK(RemoveDirectoryW(folder)); CHECK(RemoveDirectoryW(base));
+}
+static void async_lifecycle(const WCHAR *base, LONG main_thread)
+{
+    WCHAR error[512]; PlayerStats stats;
+    DWORD start; LONG before,instances,releases;
+    player_configure(NULL);
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_INIT_MS",L"1000");
+    before=value(14); instances=value(0);
+    start=GetTickCount(); CHECK(player_prepare(base,NULL,TRUE,error,512));
+    CHECK(GetTickCount()-start<150); CHECK(player_state()==1); CHECK(player_preparing()); CHECK(!player_stats(&stats));
+    CHECK(player_open("queued-during-bootstrap.mp4",NULL,TRUE,error,512));
+    CHECK(wait_value(16,1)); CHECK(player_preparing()); CHECK(wait_state(3)); CHECK(!player_preparing());
+    CHECK(value(0)==instances+1); CHECK(value(14)==before+1); CHECK(value(8)!=main_thread);
+    CHECK(!player_startup_error(error,512)); player_close(); CHECK(wait_closed());
+
+    /* Cancel and Close must not resurrect an OPEN queued during slow init. */
+    before=value(14);
+    start=GetTickCount(); CHECK(player_prepare(base,NULL,TRUE,error,512));
+    CHECK(GetTickCount()-start<150); CHECK(wait_value(16,1));
+    CHECK(player_open("must-not-play-after-cancel.mp4",NULL,TRUE,error,512));
+    start=GetTickCount(); player_stop(); CHECK(GetTickCount()-start<150);
+    CHECK(wait_state(5)); CHECK(value(14)==before); CHECK(!player_stats(&stats));
+    player_close(); CHECK(wait_closed());
+
+    before=value(14); releases=value(1);
+    CHECK(player_prepare(base,NULL,TRUE,error,512)); CHECK(wait_value(16,1));
+    CHECK(player_open("must-not-play-after-close.mp4",NULL,TRUE,error,512));
+    start=GetTickCount(); player_close(); CHECK(GetTickCount()-start<150);
+    CHECK(!player_prepare(base,NULL,TRUE,error,512)); CHECK(!player_closed());
+    CHECK(wait_closed()); CHECK(!player_preparing()); CHECK(value(14)==before); CHECK(value(1)==releases+1);
+    CHECK(value(9)!=main_thread); CHECK(value(10)==0);
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_INIT_MS",NULL);
+
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_FAIL_NEW",L"1");
+    CHECK(player_prepare(base,NULL,TRUE,error,512)); CHECK(wait_state(7));
+    CHECK(player_startup_error(error,512)); CHECK(error[0]!=0);
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_FAIL_NEW",NULL);
+    CHECK(player_open("retry-async-core.mp4",NULL,TRUE,error,512)); CHECK(wait_state(3));
+    CHECK(!player_startup_error(error,512)); player_close(); CHECK(wait_closed()); CHECK(value(10)==0);
+    {
+        WCHAR temp[MAX_PATH],trigger[MAX_PATH];
+        CHECK(GetTempPathW(MAX_PATH,temp)>0);
+        CHECK(GetTempFileNameW(temp,L"tlf",0,trigger)!=0);
+        SetEnvironmentVariableW(L"TL_FAKE_VLC_FAIL_PLAY_FILE",trigger);
+        CHECK(player_prepare(base,NULL,TRUE,error,512));
+        CHECK(player_open("one-shot-stream-failure.mp4",NULL,TRUE,error,512)); CHECK(wait_state(7));
+        CHECK(!player_startup_error(error,512));
+        CHECK(GetFileAttributesW(trigger)==INVALID_FILE_ATTRIBUTES);
+        CHECK(player_open("fresh-stream-retry.mp4",NULL,TRUE,error,512)); CHECK(wait_state(3));
+        player_close(); CHECK(wait_closed());
+        SetEnvironmentVariableW(L"TL_FAKE_VLC_FAIL_PLAY_FILE",NULL);
+    }
+}
+static void private_cache_options(const WCHAR *base)
+{
+    WCHAR folder[MAX_PATH],file[MAX_PATH],error[512],inherited[32768];
+    DWORD old_length=GetEnvironmentVariableW(L"VLC_PLUGIN_PATH",inherited,32768);
+    HANDLE sentinel; BOOL made;
+    _snwprintf(folder,MAX_PATH,L"%ls\\vlc\\plugins",base);
+    made=CreateDirectoryW(folder,NULL);
+    CHECK(made || GetLastError()==ERROR_ALREADY_EXISTS);
+    _snwprintf(file,MAX_PATH,L"%ls\\plugins.dat",folder);
+    /* This directory belongs to the fake DLL test stage, never real VLC. */
+    CHECK(GetFileAttributesW(file)==INVALID_FILE_ATTRIBUTES);
+    SetEnvironmentVariableW(L"VLC_PLUGIN_PATH",NULL);
+    CHECK(player_prepare(base,NULL,TRUE,error,512)); CHECK(player_open("first-cache.mp4",NULL,TRUE,error,512));
+    CHECK(wait_state(3)); CHECK(value(15)==1); player_close(); CHECK(wait_closed());
+    /* An existence-only sentinel tests our flag, not validity of a VLC cache. */
+    sentinel=CreateFileW(file,GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
+    CHECK(sentinel!=INVALID_HANDLE_VALUE); if(sentinel!=INVALID_HANDLE_VALUE)CloseHandle(sentinel);
+    CHECK(player_prepare(base,NULL,TRUE,error,512)); CHECK(player_open("cached.mp4",NULL,TRUE,error,512));
+    CHECK(wait_state(3)); CHECK(value(15)==0); player_close(); CHECK(wait_closed());
+    CHECK(DeleteFileW(file));
+    SetEnvironmentVariableW(L"VLC_PLUGIN_PATH",L"Z:\\another-installation\\plugins");
+    CHECK(player_prepare(base,NULL,TRUE,error,512)); CHECK(player_open("foreign-roots.mp4",NULL,TRUE,error,512));
+    CHECK(wait_state(3)); CHECK(value(15)==0); player_close(); CHECK(wait_closed());
+    SetEnvironmentVariableW(L"VLC_PLUGIN_PATH",old_length ? inherited : NULL);
+    if(made)CHECK(RemoveDirectoryW(folder));
+}
 int main(void)
 {
     WCHAR base[MAX_PATH],path[MAX_PATH],error[512],*slash;
@@ -46,8 +151,13 @@ int main(void)
     LONG main_thread=(LONG)GetCurrentThreadId(),pauses;
     DWORD start;
     int i;
+    SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX);
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_INIT_MS",NULL);
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_FAIL_NEW",NULL);
+    SetEnvironmentVariableW(L"TL_FAKE_VLC_FAIL_PLAY_FILE",NULL);
     CHECK(GetModuleFileNameW(NULL,base,MAX_PATH)>0);
     slash=wcsrchr(base,L'\\'); if(!slash)return 2; *slash=0;
+    async_missing_retry(base);
     _snwprintf(path,MAX_PATH,L"%ls\\vlc\\libvlc.dll",base);
     fixture=LoadLibraryExW(path,NULL,LOAD_WITH_ALTERED_SEARCH_PATH);
     CHECK(fixture!=NULL); if(!fixture)return 2;
@@ -121,6 +231,8 @@ int main(void)
     CHECK(player_init(base,NULL,TRUE,error,512));
     CHECK(player_open("test-six.mp4",NULL,TRUE,error,512)); CHECK(wait_state(3));
     player_close(); CHECK(wait_closed()); CHECK(value(10)==0);
+    async_lifecycle(base,main_thread);
+    private_cache_options(base);
     FreeLibrary(fixture);
     printf("%d player options/controller checks; %d failed (synthetic LibVLC)\n",checks,failed);
     return failed ? 1 : 0;

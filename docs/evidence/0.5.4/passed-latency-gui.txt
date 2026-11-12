@@ -1,0 +1,2 @@
+Synthetic extractor/VLC only: controlled phase model, not real YouTube or hardware latency.
+Latency GUI: 96 checks; 0 failures

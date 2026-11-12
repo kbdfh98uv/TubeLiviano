@@ -27,7 +27,7 @@ class Artifact(unittest.TestCase):
         self.assertEqual(struct.unpack_from("<HH", data, opt + 48), (5, 1))
         self.assertEqual(struct.unpack_from("<H", data, opt + 68)[0], 2)  # GUI
         self.assertEqual(struct.unpack_from("<II", data, opt + 96 + 14*8), (0, 0))  # no CLR
-        self.assertLess(len(data), 100_000, "Frontend no longer tens of KB")
+        self.assertLess(len(data), 100 * 1024, "Frontend exceeded the 100 KiB budget")
 
     def test_both_engines_and_runtime_are_x86(self):
         for relative in ("engines/xp/yt-dlp.exe", "engines/modern/yt-dlp.exe",

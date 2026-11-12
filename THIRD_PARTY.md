@@ -16,7 +16,10 @@ No hay instaladores ni descargas al iniciar.
 
 El frontend es C nativo; los dos ejecutables upstream de yt-dlp sí contienen
 intérpretes Python empaquetados. Se inicia solamente el correspondiente al OS y se
-cierra al cancelar. No es posible afirmar que el paquete completo carece de Python
+cierra al cancelar. El adaptador propio MIT de `plugins/` se ejecuta dentro del
+intérprete ya incluido: puede reutilizarlo hasta 12 segundos tras Buscar y lo
+cierra después de resolver. No modifica ni vuelve a empaquetar los motores
+upstream. No es posible afirmar que el paquete completo carece de Python
 ni que su consumo de RAM será el del frontend. Se incluye QuickJS-NG en
 `runtimes/qjs.exe` para resolver desafíos JavaScript mediante yt-dlp; esto tampoco
 garantiza que YouTube permita todos los accesos o deje de exigir verificación.
@@ -68,7 +71,7 @@ ni de nombres HTTPS. El script comprueba el SHA-256 del sdist y que el bundle PE
 se parsea completo. Esto evita depender exclusivamente del almacén obsoleto de XP;
 no garantiza que toda combinación servidor/TLS/VLC/XP funcione sin prueba real.
 
-`scripts/package.py` crea también `TubeLiviano_ThirdParty_Sources_0.5.3.zip` con los
+`scripts/package.py` crea también `TubeLiviano_ThirdParty_Sources_0.5.4.zip` con los
 archivos fuente upstream descargados, recetas y manifiesto. Al redistribuir, alojar
 ese ZIP junto al portable, con el mismo acceso gratuito, y conservar estos avisos.
 El archivo complementario contiene las fuentes VLC/yt-dlp y recetas contrib; no

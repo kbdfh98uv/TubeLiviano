@@ -10,7 +10,8 @@ import tempfile
 
 root = Path(__file__).resolve().parents[1]
 source = (root / "src/engine.c").read_text()
-quoting = source[source.index("static BOOL append_arg("):source.index("static BOOL drain(")]
+process_source = (root / "src/engine_process.c").read_text()
+quoting = process_source[process_source.index("BOOL engine_command_arg("):process_source.index("/* A one-file extractor")]
 json = source[source.index("typedef struct { const char *p, *end; } Json;"):source.index("static void utf8_wide(")]
 harness = r'''
 #include <stdio.h>
@@ -70,18 +71,18 @@ int main(void) {
     deep[40]='0';
     for(i=41;i<81;++i)deep[i]=']';deep[81]=0;
     CHECK(!read_value(deep));
-    CHECK(append_arg(command,&used,L"a b"));
+    CHECK(engine_command_arg(command,&used,L"a b"));
     CHECK(!wcscmp(command,L"\"a b\""));
-    CHECK(append_arg(command,&used,L"quote\""));
+    CHECK(engine_command_arg(command,&used,L"quote\""));
     CHECK(!wcscmp(command,L"\"a b\" \"quote\\\"\""));
     used=0;
-    CHECK(append_arg(command,&used,L"end\\"));
+    CHECK(engine_command_arg(command,&used,L"end\\"));
     CHECK(!wcscmp(command,L"\"end\\\\\""));
     used=0;
-    CHECK(append_arg(command,&used,L""));
+    CHECK(engine_command_arg(command,&used,L""));
     CHECK(!wcscmp(command,L"\"\""));
     used=COMMAND_CAP-1;
-    CHECK(!append_arg(command,&used,L"overflow"));
+    CHECK(!engine_command_arg(command,&used,L"overflow"));
     printf("%d native parser/quoting checks; %d failed\n",checks,failed);
     return failed?1:0;
 }

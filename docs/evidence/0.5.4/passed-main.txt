@@ -1,0 +1,5 @@
+CASE late-player-error exit=1
+CASE unwritable-report exit=3
+CASE close-enter exit=0 elapsed=1614 marker=0
+CASE long-path base-length=242 friendly-path-error=1
+Main regressions: 37 checks; 0 failures (synthetic LibVLC, no playback claim)

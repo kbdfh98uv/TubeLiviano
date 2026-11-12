@@ -1,0 +1,105 @@
+{
+  "scope": "Official modern x64 one-file at pinned version under Wine10; no XP/x86 hardware and no YouTube/network extraction",
+  "measurements": [
+    {
+      "case": "version-0",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/latency054/worker-prototype/yt-dlp-modern-x64.exe",
+        "--ignore-config",
+        "--no-plugin-dirs",
+        "--version"
+      ],
+      "stdout_ms": 2547.1400700007507,
+      "exit_ms": 2911.5628079998714,
+      "cleanup_after_stdout_ms": 364.4227379991207,
+      "exit_code": 0,
+      "version": "2026.10.26"
+    },
+    {
+      "case": "version-1",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/latency054/worker-prototype/yt-dlp-modern-x64.exe",
+        "--ignore-config",
+        "--no-plugin-dirs",
+        "--version"
+      ],
+      "stdout_ms": 1687.115332999383,
+      "exit_ms": 2051.540976999604,
+      "cleanup_after_stdout_ms": 364.4256440002209,
+      "exit_code": 0,
+      "version": "2026.10.26"
+    },
+    {
+      "case": "rpc-search-resolve-one-pid",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/latency054/worker-prototype/yt-dlp-modern-x64.exe",
+        "--ignore-config",
+        "--quiet",
+        "--no-warnings",
+        "--skip-download",
+        "--no-playlist",
+        "--no-cache-dir",
+        "--no-plugin-dirs",
+        "--plugin-dirs",
+        "Z:\\workspace\\TubeLiviano\\build\\latency054\\worker-prototype\\plugins",
+        "--",
+        "tubeliviano:worker"
+      ],
+      "ready_ms": 1652.4020269989705,
+      "replies": [
+        {
+          "request": {
+            "id": 1,
+            "op": "search",
+            "input": "tlfixture:search",
+            "limit": 6
+          },
+          "response": {
+            "id": 1,
+            "type": "search",
+            "pid": 324,
+            "results": [
+              {
+                "id": "abcdefghijk",
+                "title": "Caf\u00e9 \ud83c\udfb5",
+                "channel": "Canal de prueba",
+                "duration": 96
+              },
+              {
+                "id": "0123456789_",
+                "title": "Segundo video",
+                "channel": "Otro canal",
+                "duration": 180
+              }
+            ]
+          },
+          "response_ms": 8.892627000022912
+        },
+        {
+          "request": {
+            "id": 2,
+            "op": "resolve",
+            "input": "tlfixture:muxed",
+            "height": 240
+          },
+          "response": {
+            "id": 2,
+            "type": "streams",
+            "pid": 324,
+            "urls": [
+              "https://cdn.invalid/muxed-240.mp4"
+            ]
+          },
+          "response_ms": 12.616881998837925
+        }
+      ],
+      "cleanup_after_stream_reply_ms": 364.7607440016145,
+      "exit_code": 0
+    }
+  ],
+  "passed": true,
+  "elapsed_s": 7.061190168999019
+}

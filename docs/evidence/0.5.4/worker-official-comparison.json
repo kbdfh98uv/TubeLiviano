@@ -1,0 +1,99 @@
+{
+  "passed": true,
+  "scope": "Unchanged official engine, production C actor/plugin, offline fixture; not YouTube or XP/Atom",
+  "surrogate_x64": true,
+  "engine_sha256": "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d",
+  "commands": [
+    [
+      "/workspace/toolchain/root/usr/bin/x86_64-w64-mingw32-gcc",
+      "-municode",
+      "-std=c99",
+      "-Os",
+      "-DUNICODE",
+      "-D_UNICODE",
+      "-D__USE_MINGW_ANSI_STDIO=0",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "tests/worker_official_driver.c",
+      "src/engine_worker.c",
+      "src/engine.c",
+      "src/os_detect.c",
+      "src/engine_process.c",
+      "-static-libgcc",
+      "-Wl,--no-insert-timestamp",
+      "-o",
+      "/workspace/TubeLiviano/build/worker-tests/official-comparison/official-worker-dgs9i4au/driver.exe"
+    ],
+    [
+      "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+      "/workspace/TubeLiviano/build/worker-tests/official-comparison/official-worker-dgs9i4au/driver.exe",
+      "Z:\\workspace\\TubeLiviano\\build\\worker-tests\\official-comparison\\official-worker-dgs9i4au",
+      "Z:\\workspace\\TubeLiviano\\build\\worker-tests\\official-comparison\\candidate-0.json"
+    ],
+    [
+      "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+      "/workspace/TubeLiviano/build/worker-tests/official-comparison/official-worker-dgs9i4au/driver.exe",
+      "Z:\\workspace\\TubeLiviano\\build\\worker-tests\\official-comparison\\official-worker-dgs9i4au",
+      "Z:\\workspace\\TubeLiviano\\build\\worker-tests\\official-comparison\\candidate-1.json"
+    ],
+    [
+      "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+      "/workspace/TubeLiviano/build/worker-tests/official-comparison/official-worker-dgs9i4au/driver.exe",
+      "Z:\\workspace\\TubeLiviano\\build\\worker-tests\\official-comparison\\official-worker-dgs9i4au",
+      "Z:\\workspace\\TubeLiviano\\build\\worker-tests\\official-comparison\\candidate-2.json"
+    ]
+  ],
+  "samples": [
+    {
+      "passed": true,
+      "frontend_bits": 64,
+      "search_ms": 5308,
+      "reused_resolve_ms": 61,
+      "cleanup_wait_ms": 523,
+      "fresh_resolve_ms": 5664,
+      "offline_fixture": true,
+      "live_youtube": false,
+      "sample": 0,
+      "pid": 232,
+      "fresh_pid": 360,
+      "same_pid": true
+    },
+    {
+      "passed": true,
+      "frontend_bits": 64,
+      "search_ms": 3235,
+      "reused_resolve_ms": 38,
+      "cleanup_wait_ms": 430,
+      "fresh_resolve_ms": 3444,
+      "offline_fixture": true,
+      "live_youtube": false,
+      "sample": 1,
+      "pid": 452,
+      "fresh_pid": 544,
+      "same_pid": true
+    },
+    {
+      "passed": true,
+      "frontend_bits": 64,
+      "search_ms": 3684,
+      "reused_resolve_ms": 35,
+      "cleanup_wait_ms": 446,
+      "fresh_resolve_ms": 3047,
+      "offline_fixture": true,
+      "live_youtube": false,
+      "sample": 2,
+      "pid": 632,
+      "fresh_pid": 720,
+      "same_pid": true
+    }
+  ],
+  "driver_sha256": "0245eeb599d19804c9a2db89d9c98f9cd0e0312b04d7ae3de57fc9c7ae711b33",
+  "plugin_sha256": "a592f1e7cad22c9d4d3c102f01d33f015c47cc4837de28161a8458cb6edc030f",
+  "medians": {
+    "search_ms": 3684,
+    "reused_resolve_ms": 38,
+    "fresh_resolve_ms": 3444,
+    "cleanup_wait_ms": 446
+  }
+}

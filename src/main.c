@@ -7,11 +7,13 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include "engine.h"
+#include "engine_worker.h"
 #include "player.h"
 #include "ui.h"
 #include "settings.h"
+#include "stream_cache.h"
 
-#define VERSION L"0.5.3"
+#define VERSION L"0.5.4"
 #define DONE (WM_APP+1)
 #define FS_ESCAPE 0x5450
 #define FS_F11 0x5451
@@ -42,7 +44,14 @@ static Engine engine;
 static WCHAR base[MAX_PATH], lasturl[2048], lastquery[2048], err[768], engine_error[768];
 static EngineResult results[ENGINE_MAX_RESULTS];
 static int result_count, last_action, pending, last_state = -1;
-static BOOL closing, playing, probed, engine_ok, testmode;
+static BOOL closing, playing, probed, engine_ok, testmode, pending_fresh;
+static StreamCache stream_cache;
+static EngineStreams candidate_streams;
+static WCHAR candidate_url[2048];
+static BOOL candidate_pending, playback_cached, cached_ready;
+static int candidate_height;
+static DWORD candidate_resolved;
+static int first_frame_ms=-1, first_audio_ms=-1, prepare_call_ms=-1;
 static HANDLE worker, cancel_event;
 static DWORD started, test_started, test_ms = 5500;
 static Work *task;
@@ -68,7 +77,7 @@ static int height(void) {
 }
 static void enable_retry(BOOL on) { EnableWindow(retry, on && last_action != NONE); }
 static void fail(const WCHAR *s) {
-    playing = FALSE;
+    playing = FALSE; candidate_pending=playback_cached=cached_ready=FALSE;
     relayout();
     EnableWindow(pausebtn,FALSE);
     text(s); enable_retry(TRUE); EnableWindow(cancelbtn, worker != NULL);
@@ -88,10 +97,12 @@ static BOOL utf8(const WCHAR *s, char *out, int cap) {
     return WideCharToMultiByte(CP_UTF8, 0, s, -1, out, cap, NULL, NULL) != 0;
 }
 static BOOL open_stream(const char *url, const char *audio, BOOL local) {
-    if (!player_init(base, video, testmode, err, COUNT(err)) ||
+    DWORD before=GetTickCount();
+    if (!player_prepare(base, video, testmode, err, COUNT(err)) ||
         !player_open(url, audio, local, err, COUNT(err))) {
         fail(err); return FALSE;
     }
+    prepare_call_ms=(int)(GetTickCount()-before);
     started = GetTickCount(); playing = TRUE; last_state = -1;
     EnableWindow(cancelbtn, TRUE); EnableWindow(pausebtn, FALSE);
     enable_retry(FALSE);
@@ -143,22 +154,31 @@ static BOOL bridge_url(char *out, size_t cap) {
     return snprintf(out, cap, "%s/play?height=%d&url=%s%s%s", host8, height(), encoded,
                     token8[0] ? "&token=" : "", token8) < (int)cap;
 }
-static void launch(int action, BOOL fallback);
-static void request(int action) {
+static void launch(int action, BOOL fallback, BOOL fresh);
+static void request_mode(int action, BOOL fresh) {
     if (closing) return;
     style.page=UI_RESULTS; relayout();
     enable_retry(FALSE);
-    if (worker) { pending = action; SetEvent(cancel_event); text(L"Cancelando el motor anterior…"); return; }
-    launch(action, FALSE);
+    if (worker) {
+        pending=action; pending_fresh=fresh; SetEvent(cancel_event);
+        text(L"Cancelando el motor anterior…"); return;
+    }
+    launch(action,FALSE,fresh);
 }
-static void launch(int action, BOOL fallback) {
+static void request(int action) { request_mode(action,FALSE); }
+static void launch(int action, BOOL fallback, BOOL fresh) {
     char url[24576];
-    pending = NONE;
-    player_stop(); playing = FALSE; relayout();
+    pending = NONE; pending_fresh=FALSE;
+    candidate_pending=playback_cached=cached_ready=FALSE;
+    /* A completed bootstrap failure has no media to stop. Keep it idle so
+     * prepare can retry a repaired DLL while extraction is still running. */
+    if(!player_startup_error(NULL,0)) player_stop();
+    playing = FALSE; relayout();
     EnableWindow(pausebtn,FALSE);
     if (!fallback) probed = FALSE;
     if (action == DO_OFFLINE) {
         WCHAR path[MAX_PATH];
+        engine_worker_stop();
         int written=_snwprintf(path, COUNT(path), L"%ls\\media\\prueba-%d.mp4", base, height());
         if (written<0 || written>=(int)COUNT(path)) {
             path[0]=0;
@@ -171,10 +191,24 @@ static void launch(int action, BOOL fallback) {
         open_stream(url, NULL, TRUE); return;
     }
     if (action == DO_PLAY && SendMessageW(mode, CB_GETCURSEL, 0, 0) == 1) {
+        engine_worker_stop();
         if (bridge_url(url, sizeof(url))) open_stream(url, NULL, FALSE);
         return;
     }
     if (!engine_ok) { fail(engine_error); return; }
+    if(action==DO_PLAY) {
+        EngineStreams recent;
+        /* An explicit play warms VLC while the extractor works. Search alone
+         * never loads the player or starts speculative video requests. */
+        if(!player_prepare(base,video,testmode,err,COUNT(err))) { fail(err); return; }
+        if(!fallback && !fresh && stream_cache_get(&stream_cache,lasturl,height(),GetTickCount(),&recent)) {
+            engine_worker_stop();
+            if(open_stream(recent.video,recent.audio,FALSE)) {
+                playback_cached=TRUE; text(L"Reabriendo el enlace reciente…");
+            }
+            return;
+        }
+    }
     task = (Work *)calloc(1, sizeof(*task));
     if (!task) { fail(L"No hay memoria para iniciar el motor."); return; }
     task->engine = engine;
@@ -190,21 +224,23 @@ static void launch(int action, BOOL fallback) {
 }
 static void finish_work(void) {
     int next;
+    BOOL next_fresh;
     Work *w;
     if (!worker || WaitForSingleObject(worker, 0) != WAIT_OBJECT_0) return;
     CloseHandle(worker); worker = NULL;
     w = task; task = NULL;
-    next = pending; pending = NONE;
+    next = pending; next_fresh=pending_fresh; pending = NONE; pending_fresh=FALSE;
     if (closing) { free(w); return; }
     if (WaitForSingleObject(cancel_event, 0) == WAIT_OBJECT_0) {
         free(w);
-        if (next) launch(next, FALSE);
+        if (next) launch(next, FALSE,next_fresh);
         else { text(L"Cancelado. Podés reintentar o cambiar la calidad."); enable_retry(TRUE); EnableWindow(cancelbtn, FALSE); }
         return;
     }
     if (!w->ok) {
+        if(w->action==DO_PLAY && player_startup_error(err,COUNT(err))) { fail(err); free(w); return; }
         if (w->action == DO_PLAY && !w->fallback && engine_format_probe_allowed(&w->engine)) {
-            free(w); probed = TRUE; launch(DO_PLAY, TRUE); return;
+            free(w); probed = TRUE; launch(DO_PLAY, TRUE,TRUE); return;
         }
         fail(w->error); free(w); return;
     }
@@ -216,8 +252,14 @@ static void finish_work(void) {
         for (i = 0; i < result_count; ++i) SendMessageW(list, LB_ADDSTRING, 0, (LPARAM)results[i].title);
         if (result_count) SendMessageW(list, LB_SETCURSEL, 0, 0);
         text(result_count ? L"Elegí un resultado y pulsá Reproducir (o hacé doble clic)." : L"Sin resultados. Probá otro título.");
-        enable_retry(TRUE); EnableWindow(cancelbtn, FALSE);
-    } else open_stream(w->streams.video, w->streams.audio, FALSE);
+        enable_retry(TRUE); EnableWindow(cancelbtn, !engine_worker_closed());
+    } else if(open_stream(w->streams.video,w->streams.audio,FALSE) && !w->fallback) {
+        /* Cache only after actual picture/audio proof. Never keep a failed or
+         * merely extracted stream, and never renew a cache hit's expiry. */
+        candidate_streams=w->streams; candidate_height=w->height;
+        lstrcpynW(candidate_url,w->input,COUNT(candidate_url));
+        candidate_resolved=GetTickCount(); candidate_pending=TRUE;
+    }
     free(w); relayout();
 }
 static void search_query(void) {
@@ -380,13 +422,14 @@ static BOOL report_test(BOOL done) {
         written=fprintf(f,"{\"version\":\"%ls\",\"frontend_bits\":%u,\"windows_major\":%lu,\"windows_minor\":%lu,"
              "\"selected_engine\":\"%s\",\"complete\":%s,\"passed\":%s,\"state\":%d,\"elapsed_ms\":%lu,"
              "\"decoded_video\":%d,\"decoded_audio\":%d,\"displayed_pictures\":%d,"
-             "\"played_audio_buffers\":%d,\"read_bytes\":%d,\"first_frame_read_bytes\":%d}\n",
+             "\"played_audio_buffers\":%d,\"read_bytes\":%d,\"first_frame_read_bytes\":%d,"
+             "\"first_frame_stats_ms\":%d,\"first_audio_stats_ms\":%d,\"prepare_call_ms\":%d}\n",
              VERSION,(unsigned)(sizeof(void *)*8),(unsigned long)engine.os_major,(unsigned long)engine.os_minor,
              engine_ok ? (engine.xp ? "xp" : "modern") : "unavailable",
              done ? "true":"false", exit_code ? "false":"true", player_state(),
              (unsigned long)(GetTickCount()-test_started), final_stats.decoded_video,
              final_stats.decoded_audio, final_stats.displayed_pictures, final_stats.played_abuffers,
-             final_stats.read_bytes, first_stats.read_bytes);
+             final_stats.read_bytes, first_stats.read_bytes,first_frame_ms,first_audio_ms,prepare_call_ms);
     ok=written>0;
     if (fclose(f)!=0) ok=FALSE;
     return ok;
@@ -395,15 +438,32 @@ static void tick(void) {
     int s;
     if(!(GetAsyncKeyState(VK_F11)&0x8000)) fullscreen_key_held=FALSE;
     finish_work();
-    if (closing) { if (!worker && player_closed()) DestroyWindow(wnd); return; }
+    if (closing) { if (!worker && player_closed() && engine_worker_closed()) DestroyWindow(wnd); return; }
     if (!playing) {
+        if(!worker) EnableWindow(cancelbtn,!engine_worker_closed());
         if (testmode) { exit_code = 2; if(!report_test(TRUE))exit_code=3; PostMessageW(wnd, WM_CLOSE, 0, 0); }
         return;
     }
     s = player_state();
+    if(player_preparing()) started=GetTickCount();
+    if((candidate_pending || (playback_cached && !cached_ready)) && s!=7) {
+        PlayerStats proof;
+        if(player_stats(&proof) && proof.displayed_pictures>0) {
+            /* Visible cached video is progress even if its audio slave is late. */
+            if(candidate_pending && proof.played_abuffers>0) {
+                stream_cache_put(&stream_cache,candidate_url,candidate_height,candidate_resolved,&candidate_streams);
+                candidate_pending=FALSE;
+            }
+            if(playback_cached) cached_ready=TRUE;
+        }
+    }
     if (testmode) {
         player_stats(&final_stats);
-        if (!first_frame && final_stats.displayed_pictures > 0) { first_stats = final_stats; first_frame = TRUE; }
+        if (!first_frame && final_stats.displayed_pictures > 0) {
+            first_stats = final_stats; first_frame = TRUE;
+            first_frame_ms=(int)(GetTickCount()-test_started);
+        }
+        if(first_audio_ms<0 && final_stats.played_abuffers>0) first_audio_ms=(int)(GetTickCount()-test_started);
         if (GetTickCount()-test_started >= test_ms || s == 6 || s == 7) {
             exit_code = !(s!=7 && final_stats.decoded_video > 0 && final_stats.decoded_audio > 0 &&
                           final_stats.displayed_pictures > 0 && final_stats.played_abuffers > 0);
@@ -411,10 +471,17 @@ static void tick(void) {
             PostMessageW(wnd, WM_CLOSE, 0, 0); return;
         }
     }
-    if (s == 7 || ((s == 1 || s == 2 || s == 0) && GetTickCount()-started > 25000)) {
-        player_stop();
+    if (s == 7 || (playback_cached && !cached_ready && GetTickCount()-started>6000) ||
+        ((s == 1 || s == 2 || s == 0) && GetTickCount()-started > 25000)) {
+        BOOL startup_problem=player_startup_error(err,COUNT(err));
+        player_stop(); candidate_pending=FALSE;
+        if(startup_problem) { fail(err); return; }
+        if(!testmode && playback_cached && last_action==DO_PLAY) {
+            stream_cache_remove(&stream_cache,lasturl,height()); playback_cached=FALSE;
+            launch(DO_PLAY,FALSE,TRUE); return;
+        }
         if (!testmode && last_action == DO_PLAY && !probed && SendMessageW(mode,CB_GETCURSEL,0,0) == 0) {
-            probed = TRUE; launch(DO_PLAY,TRUE);
+            probed = TRUE; launch(DO_PLAY,TRUE,TRUE);
         } else fail(L"No se pudo reproducir. Reintentá, cambiá calidad o usá Puente. YouTube puede exigir verificación; consultá la guía.");
         return;
     }
@@ -469,6 +536,7 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         EnableWindow(cancelbtn,FALSE); EnableWindow(retry,FALSE); EnableWindow(pausebtn,FALSE);
         cancel_event=CreateEventW(NULL,TRUE,FALSE,NULL);
         if (!cancel_event) return -1;
+        stream_cache_init(&stream_cache);
         engine_ok=engine_init(&engine,base,engine_error,COUNT(engine_error));
         apply_options();
         _snwprintf(caption,COUNT(caption),L"Windows %lu.%lu • Motor: %ls • VLC 3 x86",
@@ -523,12 +591,12 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case RESULTS: if (HIWORD(wp)==LBN_DBLCLK) play_selection(); break;
         case PAUSE: player_pause(); break;
         case CANCEL:
-            pending=NONE; SetEvent(cancel_event); player_stop(); playing=FALSE; relayout();
+            pending=NONE; candidate_pending=playback_cached=cached_ready=FALSE; SetEvent(cancel_event); engine_worker_stop(); player_stop(); playing=FALSE; relayout();
             EnableWindow(pausebtn,FALSE);
             text(L"Cancelando…"); enable_retry(TRUE);
             if (!worker) { text(L"Cancelado. Enlace conservado para reintentar."); EnableWindow(cancelbtn,FALSE); }
             break;
-        case RETRY: if (last_action) request(last_action); break;
+        case RETRY: if (last_action) request_mode(last_action,TRUE); break;
         case OFFLINE: last_action=DO_OFFLINE; request(DO_OFFLINE); break;
         case QUALITY: if(HIWORD(wp)==CBN_SELCHANGE) {
             prefs.quality=height(); save_preferences();
@@ -544,7 +612,7 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case SETTINGS: configure(); break;
         case FULLSCREEN: set_fullscreen(!style.fullscreen); break;
         case HOME:
-            pending=NONE; SetEvent(cancel_event); player_stop(); playing=FALSE;
+            pending=NONE; candidate_pending=playback_cached=cached_ready=FALSE; SetEvent(cancel_event); engine_worker_stop(); player_stop(); playing=FALSE;
             EnableWindow(pausebtn,FALSE); EnableWindow(cancelbtn,worker!=NULL);
             style.page=UI_HOME; relayout(); SetFocus(query);
             text(L"Escribí un título o pegá un enlace. Tus resultados siguen en Resultados."); break;
@@ -554,8 +622,8 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case DONE: finish_work(); return 0;
     case WM_TIMER: tick(); return 0;
     case WM_CLOSE:
-        if (!closing) { if(!testmode) { remember_window(); save_preferences(); } closing=TRUE; pending=NONE; SetEvent(cancel_event); player_close(); }
-        if (!worker && player_closed()) DestroyWindow(h);
+        if (!closing) { if(!testmode) { remember_window(); save_preferences(); } closing=TRUE; pending=NONE; SetEvent(cancel_event); engine_worker_stop(); player_close(); }
+        if (!worker && player_closed() && engine_worker_closed()) DestroyWindow(h);
         return 0;
     case WM_DESTROY:
         fullscreen_keys(FALSE);

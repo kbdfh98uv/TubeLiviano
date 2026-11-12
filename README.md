@@ -1,4 +1,4 @@
-# TubeLiviano 0.5.3 · Win32 x86 portable
+# TubeLiviano 0.5.4 · Win32 x86 portable
 
 Cliente para ver videos con una ventana nativa Win32 y VLC 3 embebido. La interfaz
 se dibuja con GDI: inicio centrado, búsqueda, resultados en dos líneas, tema oscuro
@@ -19,18 +19,18 @@ prueba en XP/Atom. [Vista de pantalla completa](docs/images/0.5.3/fullscreen.png
 ## Descargar, extraer y empezar
 
 El portable se publica en [`releases/`](https://github.com/kbdfh98uv/TubeLiviano/tree/main/releases)
-como [**TubeLiviano_Portable_0.5.3_x86.zip**](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.3_x86.zip).
+como [**TubeLiviano_Portable_0.5.4_x86.zip**](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.4_x86.zip).
 
-1. Extraé **todo el ZIP en una carpeta nueva**, por ejemplo `E:\TL053`. Entrá en
+1. Extraé **todo el ZIP en una carpeta nueva**, por ejemplo `E:\TL054`. Entrá en
    la carpeta `TubeLiviano` extraída y abrí `TubeLiviano.exe`. No ejecutes el EXE
    dentro del ZIP ni mezcles DLLs o motores de una versión anterior.
-2. Confirmá **0.5.3** en el título. Pulsá **Probar imagen y audio** para ver un
+2. Confirmá **0.5.4** en el título. Pulsá **Probar imagen y audio** para ver un
    patrón animado y oír un tono de 440 Hz sin Internet. Probá los tres perfiles.
 3. En **Inicio**, escribí un título y pulsá **Buscar** o Enter; también podés usar
    **Pegar / Reproducir** con un enlace de YouTube. **Resultados** muestra título
    y, debajo, canal + duración. Doble clic o **Reproducir** abre el seleccionado.
 4. **Cancelar** detiene reproducción y extracción; **Reintentar** conserva el
-   enlace. En Resultados, cambiar de calidad reintenta el último video sin pegarlo
+   enlace. En Resultados, cambiar de calidad reabre el último video sin pegarlo
    otra vez. Cambiarla en Inicio prepara el próximo video, sin abrir uno anterior.
 5. En **Resultados**, el botón **Pantalla completa · F11** está junto a
    Configuración. Se habilita cuando hay una reproducción activa, incluso con
@@ -116,6 +116,7 @@ vlc/                             LibVLC 3.0.21 x86 y plugins necesarios
 engines/xp/yt-dlp.exe             Fork x86 publicado para XP
 engines/modern/yt-dlp.exe         Build oficial yt-dlp_x86.exe para Win10/11
 runtimes/qjs.exe                  QuickJS pequeño para desafíos JavaScript
+plugins/                         Adaptador propio para reutilizar yt-dlp brevemente
 media/prueba-{144,240,360}.mp4     Imagen y tono offline
 source/                          Código propio MIT, scripts, pruebas y guías
 licenses/                        Licencias, procedencia y hashes de terceros
@@ -135,6 +136,24 @@ prefetch son pequeños y configurables. Una salida normal `1` del extractor o un
 fallo del stream puede disparar un único probing de formatos; timeout, fallo de
 lanzamiento, DLL, crash o salida inválida no repiten esa resolución. No se usa
 `-F` antes del intento normal.
+
+Desde **0.5.4**, VLC se prepara en su hilo mientras se resuelve el enlace. La
+primera apertura puede generar `vlc/plugins/plugins.dat`; las siguientes usan
+ese índice nativo, manteniendo la comprobación normal de los plugins. Si no puede
+escribirse, VLC conserva su escaneo habitual. No copies índices de otra arquitectura.
+
+Una caché en memoria conserva como máximo dos enlaces/calidades que ya dieron
+imagen y audio, durante dos minutos desde su resolución. Reabrirlos puede evitar
+otra extracción; **Reintentar** pide una resolución nueva. No se guardan videos ni
+URLs firmadas en el INI. Si el enlace guardado falla o no muestra imagen en unos
+seis segundos después de preparar VLC, se descarta y se resuelve de nuevo.
+
+El adaptador en `plugins/` usa la API pública de yt-dlp para conservar el motor
+hasta **12 segundos después de una búsqueda**, permitiendo usarlo al elegir un
+resultado. Después de resolver, se cierra mientras VLC empieza a abrir el stream.
+**Cancelar**, **Inicio**, el modo Puente y la prueba offline también liberan ese
+motor. Mantenerlo brevemente consume RAM: hay que medir si evita paginación en el
+Atom real. Los ejecutables XP y moderno siguen separados y sin modificar.
 
 **Directo sigue siendo experimental:** YouTube puede cambiar sus desafíos,
 bloquear solicitudes, devolver 403/429 o exigir verificación. El frontend no
@@ -157,10 +176,11 @@ En Windows, cerrá otras instancias y ejecutá **`Probar_offline.cmd`** desde la
 carpeta extraída. No requiere Python, PowerShell ni Internet. Prueba los tres
 clips y deja JSON + `resultado.txt` en una carpeta de `%TEMP%` que muestra al
 terminar. Usa audio dummy: después comprobá sonido con el botón offline normal.
-El [checklist 0.5.3](docs/PRUEBAS_0.5.3.md) comprueba pantalla completa y los cinco
-presets. El [checklist base XP/Atom](docs/PRUEBAS_XP_ATOM.md), redactado para 0.5.2,
+El [checklist de latencia 0.5.4](docs/PRUEBAS_MANUALES_0.5.4.md) permite medir
+primera apertura, reapertura y procesos. El [checklist 0.5.3](docs/PRUEBAS_0.5.3.md)
+conserva las pruebas de pantalla completa y presets. El [checklist base XP/Atom](docs/PRUEBAS_XP_ATOM.md), redactado para 0.5.2,
 conserva la ficha de OS/memoria/fluidez y las pruebas de motores; al repetirlo con
-este portable, el título esperado es **0.5.3**.
+este portable, el título esperado es **0.5.4**.
 
 Desde Linux, ejecutá desde la raíz del repo o desde `source/` en el ZIP. Se
 requieren MinGW-w64 **i686/MSVCRT**, make, Python 3.12+ y FFmpeg/libx264:
@@ -174,30 +194,36 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 tests/engine_native_test.py
 cc -std=c99 -fsanitize=address,undefined tests/os_detection_test.c src/os_detect.c -o build/os_detection_native
 build/os_detection_native
+cc -DSTREAM_CACHE_NATIVE -std=c99 -fsanitize=address,undefined tests/stream_cache_test.c -o build/cache_native
+build/cache_native
+python3 tests/worker_plugin_test.py
 # Solo con Wine x86 realmente funcional y servidor X:
 python3 scripts/verify-offline.py --control-tests
 python3 scripts/package.py --slim-vlc
 python3 -m unittest discover -s tests -p test_package.py -v
 ```
 
-`make PREFIX=/ruta/i686-w64-mingw32-` permite otro toolchain. El bootstrap sin root
-está en `scripts/bootstrap-tools.sh`. `verify-offline.py --surrogate-x64` permite
-validar el mismo código con DLLs x64, y marca ese alcance explícitamente; no
+`make PREFIX=/ruta/i686-w64-mingw32-` permite otro toolchain. La compilación C x86
+usa LTO y omite las descripciones GNU de unwind de la aplicación para conservar
+el frontend por debajo de 100 KiB; mantiene SEH de Windows x86 y las DLLs originales. Esto puede reducir detalles de backtraces GNU.
+El bootstrap sin root está en `scripts/bootstrap-tools.sh`.
+`verify-offline.py --surrogate-x64` permite validar el mismo código con DLLs x64, y marca ese alcance explícitamente; no
 certifica el EXE x86. Los scripts comprueban hashes, PE32, recursos obligatorios
 y versiones antes de empaquetar. Los archivos ajenos de la etapa se excluyen y se
 informan; las dependencias corruptas o clips faltantes impiden generar el ZIP.
 
 ## Release y límites
 
-Las [notas 0.5.3](docs/RELEASE_NOTES_0.5.3.md) describen pantalla completa, presets
-y su validación. El [checkpoint 0.5.2](docs/CHECKPOINT-0.5.2.md) conserva la auditoría
-y evidencia de la versión anterior.
+Las [notas 0.5.4](docs/RELEASE_NOTES_0.5.4.md) describen la preparación paralela,
+la reutilización breve del motor y las medidas controladas de latencia. El
+[checkpoint 0.5.4](docs/CHECKPOINT_0.5.4.md) registra el estado y la siguiente
+prueba útil; se conservan las auditorías y notas de las versiones anteriores.
 El tamaño y SHA-256 definitivos están en `releases/SHA256SUMS.txt` y en el informe
 de empaquetado. No se promete alcanzar ~40 MB: los dos motores ya ocupan unos
 38 MB antes de VLC.
 
 Código propio **MIT**. VLC, yt-dlp, QuickJS y demás componentes conservan sus
 licencias; consultá [THIRD_PARTY.md](THIRD_PARTY.md) y el compañero
-`TubeLiviano_ThirdParty_Sources_0.5.3.zip`. Las fuentes transitivas y las pruebas
+`TubeLiviano_ThirdParty_Sources_0.5.4.zip`. Las fuentes transitivas y las pruebas
 XP/Atom pendientes se explican allí y en las notas; no se declara una certificación
 de compatibilidad ni de redistribución completa.

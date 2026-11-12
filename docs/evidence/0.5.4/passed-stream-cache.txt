@@ -1,0 +1,1 @@
+Stream cache: 106 checks; 0 failures (memory-only, no network/media claim)

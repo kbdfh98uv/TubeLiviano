@@ -18,7 +18,8 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.5.3'
+VERSION = '0.5.4'
+ENGINE_PLUGIN = Path('plugins/tubeliviano/yt_dlp_plugins/extractor/tubeliviano.py')
 
 # This exact reduced profile must be used by the offline playback validation.
 SLIM_PLUGINS = {
@@ -188,7 +189,7 @@ def validate_stage(stage, slim=False, cache=None, lock=None):
 
 
 def source_files():
-    for name in ['src', 'scripts', 'bridge', 'tests', 'docs']:
+    for name in ['src', 'scripts', 'bridge', 'tests', 'docs', 'plugins']:
         folder = ROOT / name
         if folder.exists():
             for file in sorted(folder.rglob('*')):
@@ -210,6 +211,9 @@ def make_zip(path, files):
 
 
 def package(stage, output, slim):
+    plugin = ROOT / ENGINE_PLUGIN
+    if not plugin.is_file():
+        raise SystemExit(f'Missing native-engine adapter source: {plugin}')
     lock = dependency_lock()
     manifest, runtime = validate_stage(stage, slim, lock=lock)
     vendor_sources = []
@@ -230,6 +234,10 @@ def package(stage, output, slim):
     generated = ['README.md', 'LICENSE', 'THIRD_PARTY.md']
     for name in generated:
         shutil.copy2(ROOT / name, stage / name)
+    plugin_target = stage / ENGINE_PLUGIN
+    plugin_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(plugin, plugin_target)
+    generated.append(ENGINE_PLUGIN.as_posix())
     batch = ROOT / 'scripts/probar-offline.cmd'
     if not batch.is_file():
         raise SystemExit('Missing scripts/probar-offline.cmd; the portable offline check is required.')

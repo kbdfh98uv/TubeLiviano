@@ -1,0 +1,23 @@
+{
+  "scope": "Static native PE32/import audit; this is not an XP execution or complete API certification",
+  "bytes": 101376,
+  "sha256": "39470649fa0316c687f5fef8eb60b08ca6a5f2128fd6651d5be5309d9414abae",
+  "machine": "i386",
+  "os_version": [
+    5,
+    1
+  ],
+  "subsystem_version": [
+    5,
+    1
+  ],
+  "dll_characteristics": "0x140",
+  "imports": {
+    "GDI32.dll": [],
+    "KERNEL32.dll": [],
+    "msvcrt.dll": [],
+    "SHELL32.dll": [],
+    "USER32.dll": []
+  },
+  "known_post_xp_imports_found": {}
+}

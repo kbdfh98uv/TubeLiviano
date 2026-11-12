@@ -1,0 +1,31 @@
+test_both_engines_and_runtime_are_x86 (test_artifact.Artifact.test_both_engines_and_runtime_are_x86) ... ok
+test_native_x86_xp_subsystem_and_size (test_artifact.Artifact.test_native_x86_xp_subsystem_and_size) ... ok
+test_offline_fixtures_certs_and_provenance (test_artifact.Artifact.test_offline_fixtures_certs_and_provenance) ... ok
+test_health_auth_and_bad_inputs (test_bridge.BridgeHTTP.test_health_auth_and_bad_inputs) ... ok
+test_all_profiles_have_real_h264_audio_24fps (test_bridge.BridgeStreaming.test_all_profiles_have_real_h264_audio_24fps) ... ok
+test_early_output_and_disconnect_kills_transcoder (test_bridge.BridgeStreaming.test_early_output_and_disconnect_kills_transcoder) ... ok
+test_command_is_bounded_and_no_shell (test_bridge.BridgeValidation.test_command_is_bounded_and_no_shell) ... ok
+test_only_youtube_sources (test_bridge.BridgeValidation.test_only_youtube_sources) ... ok
+test_optional_javascript_runtime_is_one_argument (test_bridge.BridgeValidation.test_optional_javascript_runtime_is_one_argument) ... ok
+test_shell_scripts_are_executable_and_metadata_is_reproducible (test_build_inputs.ArchiveMetadata.test_shell_scripts_are_executable_and_metadata_is_reproducible) ... ok
+test_manifest_cannot_redefine_engine_source_pin (test_build_inputs.PackageInputs.test_manifest_cannot_redefine_engine_source_pin) ... ok
+test_missing_deterministic_qjs_cannot_be_hidden_by_manifest (test_build_inputs.PackageInputs.test_missing_deterministic_qjs_cannot_be_hidden_by_manifest) ... ok
+test_missing_license_and_x64_frontend_are_rejected (test_build_inputs.PackageInputs.test_missing_license_and_x64_frontend_are_rejected) ... ok
+test_missing_offline_clip_is_a_preflight_error (test_build_inputs.PackageInputs.test_missing_offline_clip_is_a_preflight_error) ... ok
+test_same_architecture_wrong_or_swapped_engine_is_rejected (test_build_inputs.PackageInputs.test_same_architecture_wrong_or_swapped_engine_is_rejected) ... ok
+test_valid_stage_and_unexpected_files_are_not_selected (test_build_inputs.PackageInputs.test_valid_stage_and_unexpected_files_are_not_selected) ... ok
+test_vlc_archive_and_ca_are_verified (test_build_inputs.PackageInputs.test_vlc_archive_and_ca_are_verified) ... ok
+test_wrong_vlc_core_even_if_manifest_updated_is_rejected (test_build_inputs.PackageInputs.test_wrong_vlc_core_even_if_manifest_updated_is_rejected) ... ok
+test_offline_checks_hash_instead_of_trusting_cache (test_build_inputs.VerifiedBuildInputs.test_offline_checks_hash_instead_of_trusting_cache) ... ok
+test_offline_missing_cache_never_downloads (test_build_inputs.VerifiedBuildInputs.test_offline_missing_cache_never_downloads) ... ok
+test_quickjs_rejects_host_x64_ucrt_and_nonreproducible_outputs (test_build_inputs.VerifiedBuildInputs.test_quickjs_rejects_host_x64_ucrt_and_nonreproducible_outputs) ... ok
+test_indexes_before_media (test_media_profiles.OfflineMedia.test_indexes_before_media) ... ok
+test_three_codec_profiles (test_media_profiles.OfflineMedia.test_three_codec_profiles) ... ok
+setUpClass (test_package.PortableArchive) ... skipped 'Portable ZIP not built; package, then rerun test_package.py'
+test_compiled_fixed_file_info_matches_source (test_versions.Versions.test_compiled_fixed_file_info_matches_source) ... ok
+test_window_manifest_resource_and_package_agree (test_versions.Versions.test_window_manifest_resource_and_package_agree) ... ok
+
+----------------------------------------------------------------------
+Ran 25 tests in 16.671s
+
+OK (skipped=1)

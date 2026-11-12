@@ -1,0 +1,48 @@
+{
+  "scope": "Two fresh source directories plus delivered build; native x86 build-only, not execution on XP",
+  "source_sha256": {
+    "src/app.manifest": "0806a9708fc631ab6b02344b02402cf38e1d85e100080e36c2fb09afbdb5afaa",
+    "src/app.rc": "b8c145efe989c73ccf4828cc1201951d96ca67f8060eb328301692488e9147b9",
+    "src/engine.c": "d878975a937b4918b5e79a1225446e083fea659d2d9fe67f1e6f96899c5277ff",
+    "src/engine.h": "d20eebedf7e7ee141ebb268f907b3d93ecb52e44bdb4223afc52b97f5b9ecc41",
+    "src/engine_process.c": "dcb13d91bb673e70e967bfbc53788ad303a877967c71529abfa32831ea790fd2",
+    "src/engine_process.h": "1c276746e05ba3cde0fd48a1412b4a01f07a318d68af7289183bf6b883b9dd7c",
+    "src/engine_worker.c": "5d02bd50a87a66e5e2a1744a978d1a21bf7c62ee68488d1e7e37077ac6a9e8c7",
+    "src/engine_worker.h": "a7a08fc46e265c7d1e0c4983cc75ad09a58bf7106bf846f5426673aec60de24a",
+    "src/main.c": "2c2ca19cde477cc3ad62f4cc07934733327f37121a97b67f8b7041bd07bf7f6c",
+    "src/os_detect.c": "76d1213833732cb54ce5b7bbb750fd1d05eaf46a3154e12bddd7e88d5aab24d6",
+    "src/os_detect.h": "a1d9982b055f9be802dd809b4cb284812b5f358f8435e99403e1778d302ad960",
+    "src/player.c": "02f2ea2bdce159148baab876f5281d60aa55d98f4703f59bf9e3120e3dbcbd21",
+    "src/player.h": "71d57b3b867438b068f47dbc03ecf737afa7bd3282a4a523a25522b995b56cfa",
+    "src/settings.c": "5d9c1e980c77aa108c61063ad750671d6b2f5e9bc88101e52f750b04f8abde36",
+    "src/settings.h": "bf561134b38b9a56b05bf61f0541374960278c22a42fd1abaaac479dc97c0867",
+    "src/stream_cache.c": "758db332195b848da1c5e848cab49d4f22f93169173064a2216c2d9d32dc3a70",
+    "src/stream_cache.h": "841ab0db13265649fdbfcbc142d8c053a63184f6e6400aa4a9a1bc429353bd73",
+    "src/ui.c": "ba0774d5c7e007d95d6b4a50b0b91b375b8a7cd4f5171f779fd814610caeb04e",
+    "src/ui.h": "1defb3464a1851eb3b1a41f57d1dc134f08a690ad17bdbcdb0766b8b8fa7a984"
+  },
+  "builds": [
+    {
+      "command": [
+        "make",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "cwd": "/workspace/TubeLiviano/build/reports/session-0.5.4/clean-build/clean-q3yl76tb",
+      "bytes": 101376,
+      "sha256": "39470649fa0316c687f5fef8eb60b08ca6a5f2128fd6651d5be5309d9414abae",
+      "same_as_deliverable": true
+    },
+    {
+      "command": [
+        "make",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "cwd": "/workspace/TubeLiviano/build/reports/session-0.5.4/clean-build/clean-xrqvyjem",
+      "bytes": 101376,
+      "sha256": "39470649fa0316c687f5fef8eb60b08ca6a5f2128fd6651d5be5309d9414abae",
+      "same_as_deliverable": true
+    }
+  ],
+  "passed": true,
+  "compiler": "i686-w64-mingw32-gcc (GCC) 14-win32"
+}

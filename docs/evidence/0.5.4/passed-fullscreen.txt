@@ -1,0 +1,3 @@
+NO EJECUTADO: desktop pre-maximize normal-rectangle bookkeeping differs in this runtime; fullscreen restoration is checked against its stable reported entry placement.
+Synthetic VLC fixture only: no real playback quality or XP hardware claim.
+Fullscreen: 118 checks; 0 failures

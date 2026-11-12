@@ -10,8 +10,8 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-PORTABLE = DIST / "TubeLiviano_Portable_0.5.3_x86.zip"
-SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.3.zip"
+PORTABLE = DIST / "TubeLiviano_Portable_0.5.4_x86.zip"
+SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.4.zip"
 PREFIX = "TubeLiviano/"
 
 
@@ -53,17 +53,27 @@ class PortableArchive(unittest.TestCase):
             "source/src/main.c", "source/src/player.c", "source/src/engine.c",
             "source/src/os_detect.c", "source/src/os_detect.h", "source/src/app.manifest",
             "source/src/settings.c", "source/src/settings.h", "source/src/ui.c", "source/src/ui.h",
+            "source/src/stream_cache.c", "source/src/stream_cache.h",
+            "source/src/engine_worker.c", "source/src/engine_worker.h",
+            "source/src/engine_process.c", "source/src/engine_process.h",
+            "plugins/tubeliviano/yt_dlp_plugins/extractor/tubeliviano.py",
+            "source/plugins/tubeliviano/yt_dlp_plugins/extractor/tubeliviano.py",
             "source/tests/os_detection_test.c",
             "source/tests/settings_test.c", "source/tests/player_options_test.c",
             "source/tests/ui_settings_test.c", "source/tests/batch_test.c",
-            "source/tests/fullscreen_test.c",
+            "source/tests/fullscreen_test.c", "source/tests/latency_gui_test.c",
+            "source/tests/stream_cache_test.c", "source/tests/startup_bench.c",
+            "source/tests/engine_worker_test.c", "source/tests/worker_plugin_test.py",
+            "source/tests/worker_windows_test.py", "source/tests/worker_official_driver.c",
+            "source/tests/plugin_index_probe.py", "source/tests/engine_native_test.py",
+            "source/scripts/benchmark-startup.py",
             "source/Makefile", "source/LICENSE", "source/docs/VALIDACION.md",
             "source/bridge/server.py", "source/bridge/README.md",
             "source/scripts/fetch-deps.py", "source/scripts/package.py",
             "source/scripts/verify-offline.py", "Probar_offline.cmd",
             "source/tests/main_regression_test.c", "source/tests/fake_vlc.c",
-            "source/docs/PRUEBAS_XP_ATOM.md", "source/docs/PRUEBAS_0.5.3.md",
-            "source/docs/RELEASE_NOTES_0.5.3.md",
+            "source/docs/PRUEBAS_XP_ATOM.md", "source/docs/PRUEBAS_MANUALES_0.5.4.md",
+            "source/docs/RELEASE_NOTES_0.5.4.md",
             "licenses/dependencies.json", "licenses/vlc-COPYING", "licenses/vlc-COPYING.LIB",
             "licenses/quickjs-LICENSE", "licenses/yt-dlp-THIRD_PARTY_LICENSES.txt",
             "licenses/certifi-LICENSE", "licenses/MPL-2.0.txt",
@@ -72,6 +82,10 @@ class PortableArchive(unittest.TestCase):
         self.assertFalse({PREFIX + name for name in required} - self.names)
         self.assertNotIn(PREFIX + "TubeLiviano.ini", self.names, "User settings entered the portable ZIP")
         self.assertNotIn(PREFIX + "selftest.json", self.names, "A stale self-test report entered the ZIP")
+        self.assertFalse(any(name.endswith("plugins.dat") for name in self.names), "A test-architecture VLC index entered the ZIP")
+        plugin = "plugins/tubeliviano/yt_dlp_plugins/extractor/tubeliviano.py"
+        self.assertEqual(self.read(plugin), (ROOT / plugin).read_bytes())
+        self.assertEqual(self.read(plugin), self.read("source/" + plugin))
         batch = self.read("Probar_offline.cmd")
         self.assertTrue(batch.isascii())
         self.assertIn(b"\r\n", batch)
@@ -117,7 +131,8 @@ class PortableArchive(unittest.TestCase):
     def test_own_source_license_and_readme_links_are_current(self):
         self.assertIn(b"MIT License", self.read("LICENSE"))
         self.assertEqual(self.read("LICENSE"), self.read("source/LICENSE"))
-        for relative in ("src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c", "src/settings.c", "src/settings.h", "src/ui.c", "src/ui.h",
+        for relative in ("src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c", "src/settings.c", "src/settings.h", "src/ui.c", "src/ui.h", "src/stream_cache.c", "src/stream_cache.h",
+                         "src/engine_worker.c", "src/engine_worker.h", "src/engine_process.c", "src/engine_process.h",
                          "src/os_detect.h", "src/app.manifest", "docs/VALIDACION.md"):
             with self.subTest(relative=relative):
                 self.assertEqual(self.read("source/" + relative), (ROOT / relative).read_bytes())
@@ -133,7 +148,7 @@ class PortableArchive(unittest.TestCase):
     def test_source_companion_and_external_report(self):
         self.assertTrue(SOURCES.is_file(), "Third-party source companion is missing")
         report = json.loads((DIST / "package-report.json").read_text())
-        self.assertEqual(report["version"], "0.5.3")
+        self.assertEqual(report["version"], "0.5.4")
         self.assertEqual(report["portable"]["file"], PORTABLE.name)
         self.assertEqual(report["upstream_sources"]["file"], SOURCES.name)
         self.assertEqual(report["portable"]["bytes"], PORTABLE.stat().st_size)

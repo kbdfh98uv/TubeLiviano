@@ -1,4 +1,11 @@
-# Validación de TubeLiviano 0.5.2
+# Validación de TubeLiviano
+
+La versión actual 0.5.4 documenta latencia, controles y límites en
+[RELEASE_NOTES_0.5.4.md](RELEASE_NOTES_0.5.4.md), con evidencia en
+`evidence/0.5.4/`. Para medir el equipo real, usar
+[PRUEBAS_MANUALES_0.5.4.md](PRUEBAS_MANUALES_0.5.4.md).
+Los resultados siguientes se conservan como registro de **0.5.2**, no como
+ejecución del binario actual.
 
 El entregable es Win32 x86/MSVCRT, con OS y subsistema PE 5.01. El EXE y todos
 los DLL/EXE del ZIP se inspeccionan como PE32/i386; libVLC se carga dinámicamente.

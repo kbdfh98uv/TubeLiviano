@@ -140,7 +140,8 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
     libraries = ["-static-libgcc", "-Wl,--no-insert-timestamp", "-luser32", "-lgdi32", "-lshell32"]
     builds = [
         ("engine_fixture", ["tests/engine_fixture.c"], ["-municode"], controls / "engine_fixture.exe"),
-        ("engine", ["tests/engine_test.c", "src/engine.c", "src/os_detect.c"], ["-municode", "-DENGINE_TEST_TIMEOUT_MS=5000"], controls / "engine_test.exe"),
+        ("engine", ["tests/engine_test.c", "src/engine.c", "src/engine_worker.c", "src/engine_process.c", "src/os_detect.c"], ["-municode", "-DENGINE_TEST_TIMEOUT_MS=5000"], controls / "engine_test.exe"),
+        ("engine-worker", ["tests/engine_worker_test.c", "src/engine_worker.c", "src/engine_process.c"], ["-municode", "-DENGINE_WORKER_REUSE_MS=200"], controls / "engine_worker_test.exe"),
         ("os", ["tests/os_detection_test.c", "src/os_detect.c"], [], controls / "os_detection_test.exe"),
         ("gui", ["tests/gui_smoke.c"], ["-municode"], controls / "gui_smoke.exe"),
         ("fake_vlc", ["tests/fake_vlc.c"], ["-shared"], controls / "fake_vlc.dll"),
@@ -153,6 +154,8 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
         ("ui-settings", ["tests/ui_settings_test.c"], ["-municode"], controls / "ui_settings_test.exe"),
         ("batch", ["tests/batch_test.c"], ["-municode"], controls / "batch_test.exe"),
         ("fullscreen", ["tests/fullscreen_test.c"], ["-municode"], controls / "fullscreen_test.exe"),
+        ("stream-cache", ["tests/stream_cache_test.c", "src/stream_cache.c"], [], controls / "stream_cache_test.exe"),
+        ("latency-gui", ["tests/latency_gui_test.c"], ["-municode"], controls / "latency_gui_test.exe"),
     ]
     expected = 0x8664 if summary["architecture"] == "x64" else 0x14c
     for name, sources, flags, output in builds:
@@ -163,6 +166,7 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
     cases = [
         ("os", controls / "os_detection_test.exe", [], r"(\d+) OS routing checks;\s*(\d+) failed"),
         ("engine", controls / "engine_test.exe", [], r"(\d+) checks;\s*(\d+) failed"),
+        ("engine-worker", controls / "engine_worker_test.exe", [], r"Engine worker:\s*(\d+) checks;\s*(\d+) failed"),
         ("gui", controls / "gui_smoke.exe", [windows(stage / "TubeLiviano.exe")], r"GUI:\s*(\d+) checks,\s*(\d+) failures"),
         ("main", controls / "main_regression_test.exe", [windows(stage / "TubeLiviano.exe"), windows(controls / "fake_vlc.dll")], r"Main regressions:\s*(\d+) checks;\s*(\d+) failures"),
         ("loader", loader / "player_loader_test.exe", [], r"(\d+) player loader checks;\s*(\d+) failed"),
@@ -172,13 +176,15 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
         ("fullscreen", controls / "fullscreen_test.exe", [windows(stage / "TubeLiviano.exe"), windows(controls / "fake_vlc.dll")], r"Fullscreen:\s*(\d+) checks;\s*(\d+) failures"),
         ("fullscreen-media", controls / "fullscreen_test.exe", [windows(stage / "TubeLiviano.exe"), "--real-media", windows(report_dir)], r"Fullscreen real media:\s*(\d+) checks;\s*(\d+) failures"),
         ("batch", controls / "batch_test.exe", [windows(ROOT / "scripts/probar-offline.cmd")], r'"checks"\s*:\s*(\d+)\s*,\s*"failures"\s*:\s*(\d+)'),
+        ("stream-cache", controls / "stream_cache_test.exe", [], r"Stream cache:\s*(\d+) checks;\s*(\d+) failures"),
+        ("latency-gui", controls / "latency_gui_test.exe", [windows(stage / "TubeLiviano.exe"), windows(controls / "fake_vlc.dll"), "--report", windows(report_dir / "latency-gui.json")], r"Latency GUI:\s*(\d+) checks;\s*(\d+) failures"),
     ]
     for name, executable, arguments, pattern in cases:
         command = [env["WINE"], str(executable)] + arguments
         summary["commands"].append(command)
         log = report_dir / f"control-{name}.log"
         result = {"command": command, "log": str(log), "architecture": summary["architecture"],
-                  "synthetic_media": name in {"main", "player-options", "batch", "fullscreen"}, "exit_code": None, "checks": 0, "failed": None, "passed": False}
+                  "synthetic_media": name in {"main", "player-options", "batch", "fullscreen", "latency-gui"}, "exit_code": None, "checks": 0, "failed": None, "passed": False}
         summary["control_tests"][name] = result
         try:
             with log.open("w") as output:
@@ -202,7 +208,7 @@ def main():
     parser.add_argument("--wine", default=os.environ.get("WINE", "wine"))
     parser.add_argument("--wine-prefix", type=Path)
     parser.add_argument("--xvfb", help="optional Xvfb executable; otherwise inherit DISPLAY")
-    parser.add_argument("--control-tests", action="store_true", help="also run OS, engine, UI, settings, player-options, main-error and real VLC-loader regressions")
+    parser.add_argument("--control-tests", action="store_true", help="also run OS, engine, UI, settings, player-options, latency/cache, main-error and real VLC-loader regressions")
     parser.add_argument("--source-stage", type=Path, default=ROOT / "build/portable")
     parser.add_argument("--report-dir", type=Path, default=ROOT / "build/reports/offline-latest")
     args = parser.parse_args()
@@ -246,10 +252,10 @@ def main():
         resource = stage / "app.o"
         run([prefix + "windres", "src/app.rc", str(resource)], "windres.log")
         command = [prefix + "gcc", "-std=c99", "-D__USE_MINGW_ANSI_STDIO=0", "-Os", "-DUNICODE", "-D_UNICODE",
-                   "-D_WIN32_WINNT=0x0501", "-DWINVER=0x0501", "-Wall", "-Wextra", "-Werror", "-ffunction-sections"]
+                   "-D_WIN32_WINNT=0x0501", "-DWINVER=0x0501", "-Wall", "-Wextra", "-Werror", "-ffunction-sections", "-flto"]
         if not args.surrogate_x64:
-            command.append("-march=i686")
-        command += ["src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c", "src/settings.c", "src/ui.c", str(resource),
+            command += ["-march=i686", "-fno-asynchronous-unwind-tables", "-fno-unwind-tables"]
+        command += ["src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c", "src/settings.c", "src/ui.c", "src/stream_cache.c", "src/engine_worker.c", "src/engine_process.c", str(resource),
                     "-mwindows", "-static-libgcc", "-s",
                     "-Wl,--gc-sections,--no-insert-timestamp,--major-os-version,5,--minor-os-version,1,--major-subsystem-version,5,--minor-subsystem-version,1",
                     "-luser32", "-lgdi32", "-lshell32", "-o", str(stage / "TubeLiviano.exe")]

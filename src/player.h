@@ -17,6 +17,14 @@ typedef struct {
 /* Decoder/cache changes take effect on the next open. Audio changes also apply
  * to the current player when its controller is idle. NULL restores defaults. */
 void player_configure(const PlayerOptions *options);
+/* Nonblocking first-use preparation; OPEN can queue while DLL/core loading runs.
+ * Only call in response to explicit playback intent, not on application start. */
+BOOL player_prepare(const WCHAR *base, HWND video, BOOL test, WCHAR *err, size_t cap);
+/* TRUE while the controller prepares or rebuilds its native core. */
+BOOL player_preparing(void);
+/* TRUE only for a completed DLL/core startup failure; not a stream error. */
+BOOL player_startup_error(WCHAR *err, size_t cap);
+/* Legacy synchronous initialization, retained for diagnostics/embedders. */
 BOOL player_init(const WCHAR *base, HWND video, BOOL test, WCHAR *err, size_t cap);
 BOOL player_open(const char *video, const char *audio, BOOL local, WCHAR *err, size_t cap);
 void player_stop(void);
