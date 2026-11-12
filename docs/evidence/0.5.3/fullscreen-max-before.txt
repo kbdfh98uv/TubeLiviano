@@ -1,0 +1,3 @@
+FAIL 272: EqualRect(&before.rcNormalPosition,&after.rcNormalPosition)
+Synthetic VLC fixture only: no real playback quality or XP hardware claim.
+Fullscreen: 116 checks; 1 failures

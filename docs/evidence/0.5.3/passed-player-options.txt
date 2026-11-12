@@ -1,0 +1,1 @@
+302 player options/controller checks; 0 failed (synthetic LibVLC)

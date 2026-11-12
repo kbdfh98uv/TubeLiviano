@@ -86,12 +86,14 @@ static BOOL log_contains(const WCHAR *base,const char *needle) {
     return strstr(data,needle)!=NULL;
 }
 int wmain(int argc,WCHAR **argv) {
-    WCHAR self[MAX_PATH],temp[MAX_PATH],base[MAX_PATH],file[MAX_PATH],exe[MAX_PATH],command[MAX_PATH+4],title[256];
+    WCHAR self[MAX_PATH],temp[MAX_PATH],parent_root[MAX_PATH],base[MAX_PATH],file[MAX_PATH],exe[MAX_PATH],command[MAX_PATH+4],title[256];
     STARTUPINFOW si; PROCESS_INFORMATION pi; DWORD start; HANDLE child=NULL;
     if(has(argc,argv,L"--dump-json") || has(argc,argv,L"--get-url") || has(argc,argv,L"--hold"))return fake(argc,argv);
     if(argc!=2) { puts("usage: gui_smoke.exe APP.exe"); return 2; }
     GetModuleFileNameW(NULL,self,MAX_PATH); GetTempPathW(MAX_PATH,temp);
-    _snwprintf(base,MAX_PATH,L"%lsTubeLiviano GUI caf\u00e9 %lu",temp,(unsigned long)GetCurrentProcessId());
+    CHECK(GetTempFileNameW(temp,L"tlg",0,parent_root)!=0);
+    CHECK(DeleteFileW(parent_root)); CHECK(CreateDirectoryW(parent_root,NULL));
+    _snwprintf(base,MAX_PATH,L"%ls\\TubeLiviano GUI caf\u00e9",parent_root);
     CHECK(CreateDirectoryW(base,NULL));
     _snwprintf(file,MAX_PATH,L"%ls\\engines",base); CHECK(CreateDirectoryW(file,NULL));
     _snwprintf(file,MAX_PATH,L"%ls\\engines\\modern",base); CHECK(CreateDirectoryW(file,NULL));
@@ -111,7 +113,7 @@ int wmain(int argc,WCHAR **argv) {
      * children. Wait for the final control, not just the visible parent. */
     start=GetTickCount();
     while(!GetDlgItem(app,OFFLINE) && GetTickCount()-start<5000)Sleep(20);
-    GetWindowTextW(app,title,256); CHECK(wcsstr(title,L"0.5.2")!=NULL);
+    GetWindowTextW(app,title,256); CHECK(wcsstr(title,L"0.5.3")!=NULL);
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCOUNT,0,0)==3);
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==1);
     CHECK(SendMessageW(GetDlgItem(app,MODE),CB_GETCOUNT,0,0)==2);
@@ -152,7 +154,7 @@ int wmain(int argc,WCHAR **argv) {
     _snwprintf(file,MAX_PATH,L"%ls\\engines\\xp",base); RemoveDirectoryW(file);
     _snwprintf(file,MAX_PATH,L"%ls\\engines",base); RemoveDirectoryW(file);
     _snwprintf(file,MAX_PATH,L"%ls\\TubeLiviano.ini",base); DeleteFileW(file);
-    DeleteFileW(exe); RemoveDirectoryW(base);
+    DeleteFileW(exe); RemoveDirectoryW(base); RemoveDirectoryW(parent_root);
     printf("GUI: %d checks, %d failures\n",checks,failures);
     return failures ? 1 : 0;
 }

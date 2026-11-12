@@ -1,0 +1,9 @@
+{
+  "application_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa",
+  "scope": "Same-source x64/Wine; actual generated clip in VLC and genuine pinned engines present for readiness labels; no live YouTube",
+  "files": {
+    "fullscreen.png": "fcb01aedbfefa71de47cf47866bd1502fff6b834a8e51627a256a87fc24007fd",
+    "results.png": "2c5ed218668e05769002ad41980fccc1fc90aacb2bbcf0c5c8f2311e2e072a08",
+    "settings-presets.png": "efff29c4f71ae23f68959c79c186d418363dd22e1a0264808720c09e6662ee01"
+  }
+}

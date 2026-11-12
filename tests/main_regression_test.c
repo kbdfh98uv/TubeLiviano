@@ -166,12 +166,13 @@ static void long_path_test(const WCHAR *application)
     }
     CHECK(wait_exit(&process,4000,&code));
     path(suffix,base,L"selftest.json");DeleteFileW(suffix);
+    path(suffix,base,L"TubeLiviano.ini");DeleteFileW(suffix);
     DeleteFileW(exe);RemoveDirectoryW(base);
 }
 static void cleanup_stage(const WCHAR *base)
 {
     const WCHAR *files[]={L"TubeLiviano.exe",L"vlc\\libvlc.dll",L"vlc\\libvlccore.dll",L"media\\prueba-240.mp4",
-        L"engines\\modern\\yt-dlp.exe",L"engines\\xp\\yt-dlp.exe",L"late-error.json"};
+        L"engines\\modern\\yt-dlp.exe",L"engines\\xp\\yt-dlp.exe",L"late-error.json",L"TubeLiviano.ini"};
     const WCHAR *dirs[]={L"vlc",L"media",L"engines\\modern",L"engines\\xp",L"engines"};
     WCHAR name[MAX_PATH];unsigned i;
     for(i=0;i<CAP(files);i++){path(name,base,files[i]);DeleteFileW(name);}
@@ -188,7 +189,9 @@ int wmain(int argc,WCHAR **argv)
     }
     if(argc!=3){puts("usage: main_regression_test.exe APP.exe fake_vlc.dll");return 2;}
     GetTempPathW(MAX_PATH,temp);GetModuleFileNameW(NULL,self,MAX_PATH);
-    _snwprintf(root,MAX_PATH,L"%lsTL-main-regression-%lu",temp,(unsigned long)GetCurrentProcessId());
+    /* Wine process IDs can repeat across fresh sessions while TEMP persists. */
+    CHECK(GetTempFileNameW(temp,L"tlm",0,root)!=0);
+    CHECK(DeleteFileW(root));
     CHECK(CreateDirectoryW(root,NULL));path(base,root,L"stage");
     path(marker,root,L"engine-started.txt");SetEnvironmentVariableW(L"TL_FAKE_ENGINE_MARKER",marker);
     copy_stage(base,argv[1],argv[2],self);

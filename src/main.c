@@ -11,8 +11,10 @@
 #include "ui.h"
 #include "settings.h"
 
-#define VERSION L"0.5.2"
+#define VERSION L"0.5.3"
 #define DONE (WM_APP+1)
+#define FS_ESCAPE 0x5450
+#define FS_F11 0x5451
 #define COUNT(a) (sizeof(a)/sizeof((a)[0]))
 enum { NONE, DO_SEARCH, DO_PLAY, DO_OFFLINE };
 typedef struct {
@@ -26,7 +28,11 @@ typedef struct {
 } Work;
 static HWND wnd, query, search, paste, list, quality, mode, bridge;
 static HWND play, pausebtn, cancelbtn, retry, offline, status, video, labels;
-static HWND settingsbtn, homebtn, resultsbtn;
+static HWND settingsbtn, homebtn, resultsbtn, fullscreenbtn;
+static WINDOWPLACEMENT windowed_placement;
+static LONG_PTR windowed_style, windowed_exstyle;
+static HWND windowed_focus;
+static BOOL escape_hotkey, fullscreen_hotkey, fullscreen_key_held;
 static UiStyle style;
 static UiControls controls;
 static AppSettings prefs;
@@ -46,8 +52,14 @@ static BOOL first_frame;
 static int exit_code;
 
 static void layout(int w, int h);
+static void set_fullscreen(BOOL enabled);
+static void fullscreen_keys(BOOL enabled);
 static void relayout(void) {
-    RECT r; if (!wnd) return; GetClientRect(wnd,&r); layout(r.right,r.bottom);
+    RECT r; if (!wnd) return;
+    if(style.fullscreen && !playing) { set_fullscreen(FALSE); return; }
+    EnableWindow(fullscreenbtn,playing && !closing);
+    fullscreen_keys(GetForegroundWindow()==wnd);
+    GetClientRect(wnd,&r); layout(r.right,r.bottom);
 }
 static void text(const WCHAR *s) { SetWindowTextW(status, s); }
 static int height(void) {
@@ -242,6 +254,58 @@ static HWND control(const WCHAR *cls, const WCHAR *caption, DWORD flags, int id)
     return CreateWindowExW(0,cls,caption,WS_CHILD|WS_VISIBLE|flags,0,0,0,0,
                           wnd,(HMENU)(INT_PTR)id,GetModuleHandleW(NULL),NULL);
 }
+/* Keep VLC attached to the same native video child: entering/leaving only
+ * changes window geometry, without stopping or resolving the stream again. */
+static void fullscreen_keys(BOOL enabled) {
+    BOOL escape=enabled && style.fullscreen && !closing;
+    BOOL f11=enabled && playing && !closing;
+    /* VLC's child may have another thread's focus. Scope system hotkeys to our
+     * active player window, releasing them whenever another app is active. */
+    if(escape && !escape_hotkey) escape_hotkey=RegisterHotKey(wnd,FS_ESCAPE,0,VK_ESCAPE);
+    else if(!escape && escape_hotkey) { UnregisterHotKey(wnd,FS_ESCAPE); escape_hotkey=FALSE; }
+    if(f11 && !fullscreen_hotkey) fullscreen_hotkey=RegisterHotKey(wnd,FS_F11,0,VK_F11);
+    else if(!f11 && fullscreen_hotkey) { UnregisterHotKey(wnd,FS_F11); fullscreen_hotkey=FALSE; }
+}
+static BOOL fullscreen_bounds(void) {
+    MONITORINFO monitor;
+    ZeroMemory(&monitor,sizeof(monitor)); monitor.cbSize=sizeof(monitor);
+    if(!GetMonitorInfoW(MonitorFromWindow(wnd,MONITOR_DEFAULTTONEAREST),&monitor)) return FALSE;
+    return SetWindowPos(wnd,HWND_TOP,monitor.rcMonitor.left,monitor.rcMonitor.top,
+        monitor.rcMonitor.right-monitor.rcMonitor.left,monitor.rcMonitor.bottom-monitor.rcMonitor.top,
+        SWP_FRAMECHANGED|SWP_NOOWNERZORDER);
+}
+static void set_fullscreen(BOOL enabled) {
+    if(enabled==style.fullscreen) return;
+    if(enabled) {
+        if(closing || !playing) return;
+        ZeroMemory(&windowed_placement,sizeof(windowed_placement));
+        windowed_placement.length=sizeof(windowed_placement);
+        if(!GetWindowPlacement(wnd,&windowed_placement)) return;
+        windowed_style=GetWindowLongPtrW(wnd,GWL_STYLE);
+        windowed_exstyle=GetWindowLongPtrW(wnd,GWL_EXSTYLE);
+        windowed_focus=GetFocus(); style.page=UI_RESULTS; style.fullscreen=TRUE;
+        SetWindowLongPtrW(wnd,GWL_STYLE,
+            (windowed_style&~(WS_OVERLAPPEDWINDOW|WS_MAXIMIZE|WS_MINIMIZE))|WS_POPUP);
+        SetWindowLongPtrW(wnd,GWL_EXSTYLE,windowed_exstyle&~(WS_EX_WINDOWEDGE|WS_EX_CLIENTEDGE));
+        if(!fullscreen_bounds()) {
+            set_fullscreen(FALSE); text(L"No se pudo abrir pantalla completa."); return;
+        }
+        SetWindowTextW(fullscreenbtn,L"Volver a ventana · Esc / F11");
+        fullscreen_keys(GetForegroundWindow()==wnd);
+        relayout(); SetFocus(fullscreenbtn);
+    } else {
+        style.fullscreen=FALSE; fullscreen_keys(GetForegroundWindow()==wnd);
+        SetWindowLongPtrW(wnd,GWL_STYLE,windowed_style&~(WS_MAXIMIZE|WS_MINIMIZE));
+        SetWindowLongPtrW(wnd,GWL_EXSTYLE,windowed_exstyle);
+        SetWindowPlacement(wnd,&windowed_placement);
+        SetWindowPos(wnd,NULL,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOOWNERZORDER|SWP_FRAMECHANGED);
+        SetWindowTextW(fullscreenbtn,L"Pantalla completa · F11");
+        relayout();
+        if(IsWindow(windowed_focus) && IsWindowVisible(windowed_focus) && IsWindowEnabled(windowed_focus))
+            SetFocus(windowed_focus);
+        else SetFocus(fullscreenbtn);
+    }
+}
 static void apply_options(void) {
     PlayerOptions options={prefs.cache_ms,prefs.prefetch_kib,prefs.decoder_threads,prefs.volume,prefs.muted};
     player_configure(&options);
@@ -252,7 +316,8 @@ static void apply_options(void) {
 static void remember_window(void) {
     WINDOWPLACEMENT pos;
     ZeroMemory(&pos,sizeof(pos)); pos.length=sizeof(pos);
-    if(GetWindowPlacement(wnd,&pos)) {
+    if(style.fullscreen) pos=windowed_placement;
+    if(style.fullscreen || GetWindowPlacement(wnd,&pos)) {
         prefs.width=pos.rcNormalPosition.right-pos.rcNormalPosition.left;
         prefs.height=pos.rcNormalPosition.bottom-pos.rcNormalPosition.top;
         settings_validate(&prefs);
@@ -268,6 +333,7 @@ static void save_preferences(void) {
 static void configure(void) {
     AppSettings previous;
     WCHAR notice[512];
+    set_fullscreen(FALSE);
     GetWindowTextW(bridge,prefs.bridge_url,COUNT(prefs.bridge_url));
     previous=prefs;
     if(!settings_dialog(wnd,&prefs,base,notice,COUNT(notice))) return;
@@ -327,6 +393,7 @@ static BOOL report_test(BOOL done) {
 }
 static void tick(void) {
     int s;
+    if(!(GetAsyncKeyState(VK_F11)&0x8000)) fullscreen_key_held=FALSE;
     finish_work();
     if (closing) { if (!worker && player_closed()) DestroyWindow(wnd); return; }
     if (!playing) {
@@ -392,7 +459,9 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         settingsbtn=control(L"BUTTON",L"Configuración",WS_TABSTOP,SETTINGS);
         homebtn=control(L"BUTTON",L"Inicio",WS_TABSTOP,HOME);
         resultsbtn=control(L"BUTTON",L"Resultados",WS_TABSTOP,RESULTS_NAV);
-        controls=(UiControls){query,search,paste,list,quality,mode,bridge,play,pausebtn,cancelbtn,retry,offline,NULL,NULL,video,settingsbtn,homebtn,resultsbtn};
+        fullscreenbtn=control(L"BUTTON",L"Pantalla completa · F11",WS_TABSTOP,FULLSCREEN);
+        EnableWindow(fullscreenbtn,FALSE);
+        controls=(UiControls){query,search,paste,list,quality,mode,bridge,play,pausebtn,cancelbtn,retry,offline,NULL,NULL,video,settingsbtn,homebtn,resultsbtn,fullscreenbtn};
         labels=control(L"STATIC",L"",0,0);
         status=control(L"STATIC",L"Escribí un título, pegá un enlace o probá imagen y audio sin Internet.",0,0);
         controls.status=status; controls.labels=labels;
@@ -413,6 +482,7 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_SIZE: layout(LOWORD(lp),HIWORD(lp)); return 0;
     case WM_GETMINMAXINFO: {
         RECT minimum={0,0,660,450};
+        if(style.fullscreen) return 0;
         AdjustWindowRectEx(&minimum,WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,FALSE,0);
         ((MINMAXINFO *)lp)->ptMinTrackSize.x=minimum.right-minimum.left;
         ((MINMAXINFO *)lp)->ptMinTrackSize.y=minimum.bottom-minimum.top;
@@ -431,6 +501,18 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         if(!ui_draw_button(&style,d)) ui_draw_result(&style,d,results,result_count);
         return TRUE;
     }
+    case WM_ACTIVATE:
+        fullscreen_keys(LOWORD(wp)!=WA_INACTIVE);
+        return 0;
+    case WM_DISPLAYCHANGE: if(style.fullscreen) { fullscreen_bounds(); relayout(); } return 0;
+    case WM_HOTKEY:
+        if(!closing) {
+            if(wp==FS_ESCAPE && style.fullscreen) set_fullscreen(FALSE);
+            else if(wp==FS_F11 && playing && !fullscreen_key_held) {
+                fullscreen_key_held=TRUE; set_fullscreen(!style.fullscreen);
+            }
+        }
+        return 0;
     case WM_EXITSIZEMOVE: if(!testmode) { remember_window(); if(prefs.remember_size) save_preferences(); } return 0;
     case WM_COMMAND:
         if (closing || loading_controls) return 0;
@@ -460,6 +542,7 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             GetWindowTextW(bridge,prefs.bridge_url,COUNT(prefs.bridge_url)); save_preferences();
             } break;
         case SETTINGS: configure(); break;
+        case FULLSCREEN: set_fullscreen(!style.fullscreen); break;
         case HOME:
             pending=NONE; SetEvent(cancel_event); player_stop(); playing=FALSE;
             EnableWindow(pausebtn,FALSE); EnableWindow(cancelbtn,worker!=NULL);
@@ -475,6 +558,7 @@ static LRESULT CALLBACK procedure(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         if (!worker && player_closed()) DestroyWindow(h);
         return 0;
     case WM_DESTROY:
+        fullscreen_keys(FALSE);
         KillTimer(h,1); if(cancel_event)CloseHandle(cancel_event);
         ui_style_free(&style);
         PostQuitMessage(exit_code); return 0;
@@ -535,8 +619,17 @@ int WINAPI WinMain(HINSTANCE instance,HINSTANCE previous,LPSTR command,int show)
     SetFocus(query);
     while (GetMessageW(&msg,NULL,0,0)>0) {
         if(msg.message==WM_KEYDOWN && !closing && (GetKeyState(VK_CONTROL)&0x8000)) {
-            if(msg.wParam=='F') { SetFocus(query); SendMessageW(query,EM_SETSEL,0,-1); continue; }
+            if(msg.wParam=='F') { set_fullscreen(FALSE); SetFocus(query); SendMessageW(query,EM_SETSEL,0,-1); continue; }
             if(msg.wParam==VK_OEM_COMMA) { configure(); continue; }
+        }
+        if(msg.message==WM_KEYDOWN && msg.wParam==VK_F11 && !closing) {
+            if(!(msg.lParam&(1L<<30))) set_fullscreen(!style.fullscreen);
+            continue;
+        }
+        /* Releasing fullscreen must not turn the same held Esc into Cancel. */
+        if(msg.message==WM_KEYDOWN && msg.wParam==VK_ESCAPE && (msg.lParam&(1L<<30))) continue;
+        if(msg.message==WM_KEYDOWN && msg.wParam==VK_ESCAPE && style.fullscreen && !closing) {
+            set_fullscreen(FALSE); continue;
         }
         if(msg.message==WM_KEYDOWN && msg.wParam==VK_ESCAPE && !closing &&
            !SendMessageW(quality,CB_GETDROPPEDSTATE,0,0) && !SendMessageW(mode,CB_GETDROPPEDSTATE,0,0)) {

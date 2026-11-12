@@ -1,0 +1,5 @@
+Dialog resources: GDI 0 -> 0, USER 0 -> 0
+NO EJECUTADO: GDI resource comparison unavailable in this Windows compatibility runtime.
+NO EJECUTADO: USER resource comparison unavailable in this Windows compatibility runtime.
+UI/settings: 169 checks, 0 failures (native controls, no network/playback)
+X connection to :90 broken (explicit kill or server shutdown).

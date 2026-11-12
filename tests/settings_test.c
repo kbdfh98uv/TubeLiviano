@@ -132,6 +132,43 @@ static void check_equal(const AppSettings *a, const AppSettings *b)
     CHECK(!wcscmp(a->bridge_url,b->bridge_url));
 }
 
+static void check_presets(void)
+{
+    static const int expected_values[PRESET_COUNT][5] = {
+        {144, 250, 64, 1, 0}, {240, 450, 128, 1, 0},
+        {240, 1500, 256, 1, 0}, {360, 600, 128, 2, 0},
+        {240, 800, 128, 1, 1}
+    };
+    AppSettings original, actual, expected;
+    int preset;
+    settings_defaults(&original);
+    original.quality=360; original.cache_ms=2300; original.prefetch_kib=256;
+    original.decoder_threads=2; original.volume=37; original.muted=TRUE;
+    original.dark_theme=FALSE; original.large_text=TRUE; original.results_limit=6;
+    original.search_timeout_s=30; original.resolve_timeout_s=60;
+    original.mode=1; original.remember_size=FALSE;
+    original.width=1234; original.height=789;
+    lstrcpyW(original.bridge_url,L"http://192.168.1.70:8787?token=SESSION_SECRET_123");
+    for (preset=0;preset<PRESET_COUNT;++preset) {
+        actual=original; expected=original;
+        /* Start opposite to the selected mode so switching is observable. */
+        actual.mode=expected.mode=1-expected_values[preset][4];
+        expected.quality=expected_values[preset][0];
+        expected.cache_ms=expected_values[preset][1];
+        expected.prefetch_kib=expected_values[preset][2];
+        expected.decoder_threads=expected_values[preset][3];
+        expected.mode=expected_values[preset][4];
+        CHECK(settings_apply_preset(&actual,preset));
+        check_equal(&actual,&expected);
+    }
+    actual=original;
+    CHECK(!settings_apply_preset(&actual,-1));
+    check_equal(&actual,&original);
+    CHECK(!settings_apply_preset(&actual,PRESET_COUNT));
+    check_equal(&actual,&original);
+    CHECK(!settings_apply_preset(NULL,PRESET_ATOM));
+}
+
 int main(void)
 {
     WCHAR base[MAX_PATH], path[MAX_PATH], absent[MAX_PATH], notice[512];
@@ -141,6 +178,7 @@ int main(void)
     DWORD before_size, after_size;
     BOOL have_directory;
     SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX);
+    check_presets();
     settings_defaults(&defaults);
     check_defaults(&defaults);
     have_directory=temporary_directory(base);

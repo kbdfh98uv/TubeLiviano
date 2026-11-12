@@ -1,0 +1,2 @@
+Decoded video=38 audio=88 displayed=3 played_audio=44
+19 player loader checks; 0 failed

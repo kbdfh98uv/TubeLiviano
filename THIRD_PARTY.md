@@ -68,7 +68,7 @@ ni de nombres HTTPS. El script comprueba el SHA-256 del sdist y que el bundle PE
 se parsea completo. Esto evita depender exclusivamente del almacén obsoleto de XP;
 no garantiza que toda combinación servidor/TLS/VLC/XP funcione sin prueba real.
 
-`scripts/package.py` crea también `TubeLiviano_ThirdParty_Sources_0.5.2.zip` con los
+`scripts/package.py` crea también `TubeLiviano_ThirdParty_Sources_0.5.3.zip` con los
 archivos fuente upstream descargados, recetas y manifiesto. Al redistribuir, alojar
 ese ZIP junto al portable, con el mismo acceso gratuito, y conservar estos avisos.
 El archivo complementario contiene las fuentes VLC/yt-dlp y recetas contrib; no

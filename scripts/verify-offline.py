@@ -152,6 +152,7 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
         ("player-options", ["tests/player_options_test.c", "src/player.c"], [], options / "player_options_test.exe"),
         ("ui-settings", ["tests/ui_settings_test.c"], ["-municode"], controls / "ui_settings_test.exe"),
         ("batch", ["tests/batch_test.c"], ["-municode"], controls / "batch_test.exe"),
+        ("fullscreen", ["tests/fullscreen_test.c"], ["-municode"], controls / "fullscreen_test.exe"),
     ]
     expected = 0x8664 if summary["architecture"] == "x64" else 0x14c
     for name, sources, flags, output in builds:
@@ -168,6 +169,8 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
         ("settings", controls / "settings_test.exe", [], r"(\d+) native settings checks;\s*(\d+) failed"),
         ("player-options", options / "player_options_test.exe", [], r"(\d+) player options/controller checks;\s*(\d+) failed"),
         ("ui-settings", controls / "ui_settings_test.exe", [windows(stage / "TubeLiviano.exe")], r"UI/settings:\s*(\d+) checks,\s*(\d+) failures"),
+        ("fullscreen", controls / "fullscreen_test.exe", [windows(stage / "TubeLiviano.exe"), windows(controls / "fake_vlc.dll")], r"Fullscreen:\s*(\d+) checks;\s*(\d+) failures"),
+        ("fullscreen-media", controls / "fullscreen_test.exe", [windows(stage / "TubeLiviano.exe"), "--real-media", windows(report_dir)], r"Fullscreen real media:\s*(\d+) checks;\s*(\d+) failures"),
         ("batch", controls / "batch_test.exe", [windows(ROOT / "scripts/probar-offline.cmd")], r'"checks"\s*:\s*(\d+)\s*,\s*"failures"\s*:\s*(\d+)'),
     ]
     for name, executable, arguments, pattern in cases:
@@ -175,7 +178,7 @@ def control_tests(prefix, stage, report_dir, env, summary, run):
         summary["commands"].append(command)
         log = report_dir / f"control-{name}.log"
         result = {"command": command, "log": str(log), "architecture": summary["architecture"],
-                  "synthetic_media": name in {"main", "player-options", "batch"}, "exit_code": None, "checks": 0, "failed": None, "passed": False}
+                  "synthetic_media": name in {"main", "player-options", "batch", "fullscreen"}, "exit_code": None, "checks": 0, "failed": None, "passed": False}
         summary["control_tests"][name] = result
         try:
             with log.open("w") as output:

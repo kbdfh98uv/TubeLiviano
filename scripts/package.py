@@ -18,7 +18,7 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.5.2'
+VERSION = '0.5.3'
 
 # This exact reduced profile must be used by the offline playback validation.
 SLIM_PLUGINS = {

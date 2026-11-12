@@ -1,0 +1,5 @@
+FAIL 95: CreateDirectoryW(base,NULL)
+FAIL 116: SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==1
+FAIL 128: log_contains(base,"[height<=240]")
+GUI: 32 checks, 3 failures
+X connection to :90 broken (explicit kill or server shutdown).

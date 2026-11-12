@@ -1,0 +1,8 @@
+FAIL 192: CreateDirectoryW(root,NULL)
+FAIL 41: CreateDirectoryW(base,NULL)
+CASE late-player-error exit=1
+CASE unwritable-report exit=3
+CASE close-enter exit=0 elapsed=1505 marker=0
+FAIL 156: CreateDirectoryW(base,NULL)
+CASE long-path base-length=242 friendly-path-error=1
+Main regressions: 35 checks; 3 failures (synthetic LibVLC, no playback claim)

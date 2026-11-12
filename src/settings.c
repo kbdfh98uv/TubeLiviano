@@ -5,6 +5,36 @@
 
 #define COUNT(a) (sizeof(a) / sizeof((a)[0]))
 
+typedef struct {
+    int quality, cache_ms, prefetch_kib, decoder_threads, mode;
+    const WCHAR *name, *description;
+} SettingsPreset;
+
+static const SettingsPreset presets[PRESET_COUNT] = {
+    {144, 250, 64, 1, 0, L"Mínimo · 144p",
+     L"144p · 250 ms · 64 KiB · 1 hilo · Directo"},
+    {240, 450, 128, 1, 0, L"Atom · 240p (recomendado)",
+     L"240p · 450 ms · 128 KiB · 1 hilo · Directo"},
+    {240, 1500, 256, 1, 0, L"Conexión inestable · 240p",
+     L"240p · 1500 ms · 256 KiB · 1 hilo · Directo"},
+    {360, 600, 128, 2, 0, L"360p · Dos hilos",
+     L"360p · 600 ms · 128 KiB · 2 hilos · Directo"},
+    {240, 800, 128, 1, 1, L"Puente · 240p",
+     L"240p · 800 ms · 128 KiB · 1 hilo · Puente"}
+};
+
+BOOL settings_apply_preset(AppSettings *s, int preset) {
+    const SettingsPreset *p;
+    if (!s || preset < 0 || preset >= PRESET_COUNT) return FALSE;
+    p = &presets[preset];
+    s->quality = p->quality;
+    s->cache_ms = p->cache_ms;
+    s->prefetch_kib = p->prefetch_kib;
+    s->decoder_threads = p->decoder_threads;
+    s->mode = p->mode;
+    return TRUE;
+}
+
 static void copy_text(WCHAR *out, size_t cap, const WCHAR *text) {
     size_t n;
     if (!out || !cap) return;
@@ -234,11 +264,11 @@ enum {
     SD_GENERAL = 500, SD_PLAYBACK, SD_NETWORK, SD_DEFAULTS, SD_ATOM, SD_MINIMUM,
     SD_DARK, SD_LARGE, SD_REMEMBER, SD_RESULTS, SD_QUALITY, SD_CACHE,
     SD_PREFETCH, SD_THREADS, SD_VOLUME, SD_MUTED, SD_MODE, SD_BRIDGE,
-    SD_SEARCH_TIMEOUT, SD_RESOLVE_TIMEOUT
+    SD_SEARCH_TIMEOUT, SD_RESOLVE_TIMEOUT, SD_PRESET, SD_PRESET_APPLY
 };
 
 typedef struct {
-    HWND window, controls[48], fields[SD_RESOLVE_TIMEOUT - SD_DARK + 1], feedback;
+    HWND window, controls[48], fields[SD_RESOLVE_TIMEOUT - SD_DARK + 1], feedback, preset_hint;
     int pages[48], count, page;
     BOOL small_font[48];
     AppSettings draft;
@@ -393,8 +423,16 @@ static BOOL setting_read(SettingsDialog *d, BOOL check_ranges) {
     return TRUE;
 }
 
+static void setting_preset_hint(SettingsDialog *d) {
+    int selected = (int)SendMessageW(GetDlgItem(d->window, SD_PRESET), CB_GETCURSEL, 0, 0);
+    BOOL valid = selected >= 0 && selected < PRESET_COUNT;
+    SetWindowTextW(d->preset_hint, valid ? presets[selected].description : L"Elegí un preset para preparar.");
+    EnableWindow(GetDlgItem(d->window, SD_PRESET_APPLY), valid);
+}
+
 static BOOL setting_create(SettingsDialog *d) {
     HWND control;
+    int i;
     setting_control(d, L"BUTTON", L"General", WS_TABSTOP | BS_OWNERDRAW, SD_GENERAL, -1, 20, 61, 158, 32);
     setting_control(d, L"BUTTON", L"Reproducción", WS_TABSTOP | BS_OWNERDRAW, SD_PLAYBACK, -1, 188, 61, 158, 32);
     setting_control(d, L"BUTTON", L"Red", WS_TABSTOP | BS_OWNERDRAW, SD_NETWORK, -1, 356, 61, 158, 32);
@@ -402,9 +440,19 @@ static BOOL setting_create(SettingsDialog *d) {
     setting_control(d, L"BUTTON", L"Texto grande", WS_TABSTOP | BS_AUTOCHECKBOX, SD_LARGE, 0, 28, 156, 470, 27);
     setting_control(d, L"BUTTON", L"Recordar el tamaño de la ventana", WS_TABSTOP | BS_AUTOCHECKBOX, SD_REMEMBER, 0, 28, 194, 480, 27);
     setting_combo(d, SD_RESULTS, 0, 238, L"Resultados por búsqueda", L"6 resultados", L"12 resultados", NULL);
-    setting_hint(d, L"Perfiles de reproducción para equipos de pocos recursos", 0, 289);
-    setting_control(d, L"BUTTON", L"Atom · 240p", WS_TABSTOP | BS_OWNERDRAW, SD_ATOM, 0, 28, 320, 225, 32);
-    setting_control(d, L"BUTTON", L"Mínimo · 144p", WS_TABSTOP | BS_OWNERDRAW, SD_MINIMUM, 0, 270, 320, 238, 32);
+    setting_hint(d, L"Presets de reproducción", 0, 282);
+    control = setting_control(d, L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
+                              SD_PRESET, 0, 28, 310, 350, 180);
+    for (i = 0; i < PRESET_COUNT; ++i)
+        SendMessageW(control, CB_ADDSTRING, 0, (LPARAM)presets[i].name);
+    SendMessageW(control, CB_SETCURSEL, PRESET_ATOM, 0);
+    setting_control(d, L"BUTTON", L"Preparar", WS_TABSTOP | BS_OWNERDRAW,
+                    SD_PRESET_APPLY, 0, 390, 310, 118, 32);
+    d->preset_hint = setting_control(d, L"STATIC", L"", SS_LEFT, 0, 0, 28, 349, 480, 24);
+    if (d->preset_hint) {
+        d->small_font[d->count - 1] = TRUE;
+        SendMessageW(d->preset_hint, WM_SETFONT, (WPARAM)d->style.small, FALSE);
+    }
     setting_combo(d, SD_QUALITY, 1, 112, L"Calidad de video", L"144p", L"240p · Atom", L"360p");
     setting_label(d, L"Búfer de red (250 a 3000 ms)", 1, 28, 158, 290);
     control = setting_control(d, L"EDIT", L"", WS_TABSTOP | ES_NUMBER | ES_AUTOHSCROLL, SD_CACHE, 1, 326, 154, 182, 27);
@@ -432,6 +480,7 @@ static BOOL setting_create(SettingsDialog *d) {
     setting_control(d, L"BUTTON", L"Guardar", WS_TABSTOP | BS_OWNERDRAW, IDOK, -1, 400, 410, 114, 32);
     if (d->failed) return FALSE;
     setting_values(d);
+    setting_preset_hint(d);
     setting_page(d, 0);
     return TRUE;
 }
@@ -454,6 +503,33 @@ static LRESULT CALLBACK settings_proc(HWND window, UINT message, WPARAM wp, LPAR
         case SD_GENERAL: setting_page(d, 0); return 0;
         case SD_PLAYBACK: setting_page(d, 1); return 0;
         case SD_NETWORK: setting_page(d, 2); return 0;
+        case SD_PRESET:
+            if (HIWORD(wp) == CBN_SELCHANGE) setting_preset_hint(d);
+            return 0;
+        case SD_PRESET_APPLY: {
+            WCHAR volume_text[32];
+            int volume;
+            int selected = (int)SendMessageW(GetDlgItem(window, SD_PRESET), CB_GETCURSEL, 0, 0);
+            if (selected < 0 || selected >= PRESET_COUNT) return 0;
+            /* The preset replaces cache settings but keeps volume. Do not
+             * silently turn an invalid volume edit into its default value. */
+            GetWindowTextW(setting_field(d, SD_VOLUME), volume_text, COUNT(volume_text));
+            volume = parse_number(volume_text, -1);
+            if (volume < 0 || volume > 100) {
+                setting_page(d, 1);
+                SetWindowTextW(d->feedback, L"El volumen debe estar entre 0 y 100.");
+                SetFocus(setting_field(d, SD_VOLUME));
+                return 0;
+            }
+            /* Preserve edits on every page before changing the five preset
+             * fields. Preparing never saves; Cancel still discards the draft. */
+            setting_read(d, FALSE);
+            if (settings_apply_preset(&d->draft, selected)) {
+                setting_values(d);
+                SetWindowTextW(d->feedback, L"Preset preparado; pulsá Guardar para aplicar.");
+            }
+            return 0;
+        }
         case SD_DARK:
         case SD_LARGE:
             if (HIWORD(wp) == BN_CLICKED) setting_restyle(d);
@@ -464,6 +540,8 @@ static LRESULT CALLBACK settings_proc(HWND window, UINT message, WPARAM wp, LPAR
             d->draft.width = width;
             d->draft.height = height;
             setting_values(d);
+            SendMessageW(GetDlgItem(window, SD_PRESET), CB_SETCURSEL, PRESET_ATOM, 0);
+            setting_preset_hint(d);
             setting_restyle(d);
             SetWindowTextW(d->feedback, L"Valores predeterminados; pulsá Guardar para aplicar.");
             return 0;
@@ -476,6 +554,9 @@ static LRESULT CALLBACK settings_proc(HWND window, UINT message, WPARAM wp, LPAR
             d->draft.prefetch_kib = LOWORD(wp) == SD_ATOM ? 128 : 64;
             d->draft.decoder_threads = 1;
             setting_values(d);
+            SendMessageW(GetDlgItem(window, SD_PRESET), CB_SETCURSEL,
+                         LOWORD(wp) == SD_ATOM ? PRESET_ATOM : PRESET_MINIMUM, 0);
+            setting_preset_hint(d);
             SetWindowTextW(d->feedback, L"Perfil preparado; pulsá Guardar para aplicar.");
             return 0;
         case IDOK:

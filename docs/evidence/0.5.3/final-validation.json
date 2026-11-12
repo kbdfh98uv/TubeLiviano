@@ -1,0 +1,279 @@
+{
+  "version": "0.5.3",
+  "architecture": "x64",
+  "surrogate": true,
+  "physical_XP_Atom_tested": false,
+  "dummy_audio": true,
+  "binary_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa",
+  "strategy": "Combined per-case results for the identical frozen application. Replayed only changed fullscreen test synchronization, real visible media and batch after an enclosing runner stopped at its old fullscreen harness assertion.",
+  "integrated_run": {
+    "source_report": "initial-integrated-run.json",
+    "passed": false,
+    "failure": "Control test fullscreen failed or executed no checks; inspect control-fullscreen.log",
+    "accepted_passed_cases": [
+      "os",
+      "engine",
+      "gui",
+      "main",
+      "loader",
+      "settings",
+      "player-options",
+      "ui-settings"
+    ]
+  },
+  "results": {
+    "local-144.json": {
+      "version": "0.5.3",
+      "frontend_bits": 64,
+      "windows_major": 10,
+      "windows_minor": 0,
+      "selected_engine": "unavailable",
+      "complete": true,
+      "passed": true,
+      "state": 3,
+      "elapsed_ms": 5578,
+      "decoded_video": 230,
+      "decoded_audio": 432,
+      "displayed_pictures": 94,
+      "played_audio_buffers": 216,
+      "read_bytes": 154815,
+      "first_frame_read_bytes": 42737,
+      "validation_architecture": "x64",
+      "surrogate": true,
+      "binary_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa"
+    },
+    "local-240.json": {
+      "version": "0.5.3",
+      "frontend_bits": 64,
+      "windows_major": 10,
+      "windows_minor": 0,
+      "selected_engine": "unavailable",
+      "complete": true,
+      "passed": true,
+      "state": 3,
+      "elapsed_ms": 5574,
+      "decoded_video": 230,
+      "decoded_audio": 410,
+      "displayed_pictures": 98,
+      "played_audio_buffers": 205,
+      "read_bytes": 238688,
+      "first_frame_read_bytes": 56917,
+      "validation_architecture": "x64",
+      "surrogate": true,
+      "binary_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa"
+    },
+    "local-360.json": {
+      "version": "0.5.3",
+      "frontend_bits": 64,
+      "windows_major": 10,
+      "windows_minor": 0,
+      "selected_engine": "unavailable",
+      "complete": true,
+      "passed": true,
+      "state": 3,
+      "elapsed_ms": 5570,
+      "decoded_video": 230,
+      "decoded_audio": 432,
+      "displayed_pictures": 98,
+      "played_audio_buffers": 216,
+      "read_bytes": 414840,
+      "first_frame_read_bytes": 90493,
+      "validation_architecture": "x64",
+      "surrogate": true,
+      "binary_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa"
+    },
+    "range-measurement.json": {
+      "version": "0.5.3",
+      "frontend_bits": 64,
+      "windows_major": 10,
+      "windows_minor": 0,
+      "selected_engine": "unavailable",
+      "complete": true,
+      "passed": true,
+      "state": 3,
+      "elapsed_ms": 12068,
+      "decoded_video": 506,
+      "decoded_audio": 926,
+      "displayed_pictures": 230,
+      "played_audio_buffers": 463,
+      "read_bytes": 671744,
+      "first_frame_read_bytes": 131072,
+      "validation_architecture": "x64",
+      "surrogate": true,
+      "binary_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa",
+      "origin_sent_bytes": 768000,
+      "file_bytes": 4428555,
+      "range_requests": [
+        "bytes=0-"
+      ],
+      "first_frame_fraction": 0.029597013021177336
+    }
+  },
+  "control_tests": {
+    "os": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/os_detection_test.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-os.log",
+      "architecture": "x64",
+      "synthetic_media": false,
+      "exit_code": 0,
+      "checks": 23,
+      "failed": 0,
+      "passed": true
+    },
+    "engine": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/engine_test.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-engine.log",
+      "architecture": "x64",
+      "synthetic_media": false,
+      "exit_code": 0,
+      "checks": 115,
+      "failed": 0,
+      "passed": true
+    },
+    "gui": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/gui_smoke.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-gui.log",
+      "architecture": "x64",
+      "synthetic_media": false,
+      "exit_code": 0,
+      "checks": 35,
+      "failed": 0,
+      "passed": true
+    },
+    "main": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/main_regression_test.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9-controls\\fake_vlc.dll"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-main.log",
+      "architecture": "x64",
+      "synthetic_media": true,
+      "exit_code": 0,
+      "checks": 37,
+      "failed": 0,
+      "passed": true
+    },
+    "loader": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/loader/player_loader_test.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-loader.log",
+      "architecture": "x64",
+      "synthetic_media": false,
+      "exit_code": 0,
+      "checks": 19,
+      "failed": 0,
+      "passed": true
+    },
+    "settings": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/settings_test.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-settings.log",
+      "architecture": "x64",
+      "synthetic_media": false,
+      "exit_code": 0,
+      "checks": 300,
+      "failed": 0,
+      "passed": true
+    },
+    "player-options": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/player-options/player_options_test.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-player-options.log",
+      "architecture": "x64",
+      "synthetic_media": true,
+      "exit_code": 0,
+      "checks": 302,
+      "failed": 0,
+      "passed": true
+    },
+    "ui-settings": {
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/ui_settings_test.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe"
+      ],
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/release/control-ui-settings.log",
+      "architecture": "x64",
+      "synthetic_media": false,
+      "exit_code": 0,
+      "checks": 169,
+      "failed": 0,
+      "passed": true
+    },
+    "fullscreen": {
+      "case": "fake-no-captures",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/fullscreen_test_x64.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9-controls\\fake_vlc.dll"
+      ],
+      "exit_code": 0,
+      "synthetic_media": true,
+      "checks": 118,
+      "failed": 0,
+      "passed": true,
+      "driver_sha256": "954cfbf775b6a420cc7062f23d2b0be8977c7c504e8c12d5e858866f687813e3",
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-ready-final/fake-no-captures.log"
+    },
+    "fullscreen-media": {
+      "case": "real-with-captures",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/fullscreen_test_x64.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "--real-media",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\fullscreen-real-visible\\real-captures"
+      ],
+      "exit_code": 0,
+      "synthetic_media": false,
+      "checks": 51,
+      "failed": 0,
+      "passed": true,
+      "driver_sha256": "ac8f0afef6d8edc757ce013167a09c3f7f03a4192b7ed57637750bda98a865c0",
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-real-visible/real-with-captures.log"
+    },
+    "batch": {
+      "case": "batch",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/batch_test.exe",
+        "Z:\\workspace\\TubeLiviano\\scripts\\probar-offline.cmd"
+      ],
+      "exit_code": 0,
+      "synthetic_media": true,
+      "checks": 127,
+      "failed": 0,
+      "passed": true,
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-focused/batch.log",
+      "executable_sha256": "5a26aea2def5d8c767a4c869e0cfd43f5e97f1be39ab69eaf021c8d55a274530"
+    }
+  },
+  "checks": 1296,
+  "passed": true,
+  "limitations": [
+    "No live YouTube",
+    "No physical XP/Atom execution",
+    "Dummy audio sink; audible sound not checked",
+    "Same-source x64 surrogate does not execute or certify the delivered x86 binary",
+    "Headless Wine pre-maximize normal-placement bookkeeping differs before fullscreen; physical desktop check remains. Original before/after fullscreen placement assertions are retained."
+  ]
+}

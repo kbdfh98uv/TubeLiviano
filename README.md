@@ -1,4 +1,4 @@
-# TubeLiviano 0.5.2 · Win32 x86 portable
+# TubeLiviano 0.5.3 · Win32 x86 portable
 
 Cliente para ver videos con una ventana nativa Win32 y VLC 3 embebido. La interfaz
 se dibuja con GDI: inicio centrado, búsqueda, resultados en dos líneas, tema oscuro
@@ -11,19 +11,20 @@ El objetivo es **XP SP3 x86 / Atom N270 con 512 MB**, además de Windows 10/11.
 compatibilidad, RAM o fluidez. Las ejecuciones x64/Wine documentadas son una
 variante de validación y no sustituyen el EXE x86 del ZIP.
 
-![Inicio oscuro de TubeLiviano](docs/images/0.5.2/home-dark.png)
+![TubeLiviano 0.5.3: botón de pantalla completa](docs/images/0.5.3/results.png)
 
-Captura de la variante de validación x64/Wine; no es una prueba en XP/Atom.
+Captura de la reproducción offline en la variante x64/Wine de 0.5.3; no es una
+prueba en XP/Atom. [Vista de pantalla completa](docs/images/0.5.3/fullscreen.png) · [Presets](docs/images/0.5.3/settings-presets.png).
 
 ## Descargar, extraer y empezar
 
 El portable se publica en [`releases/`](https://github.com/kbdfh98uv/TubeLiviano/tree/main/releases)
-como [**TubeLiviano_Portable_0.5.2_x86.zip**](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.2_x86.zip).
+como [**TubeLiviano_Portable_0.5.3_x86.zip**](https://github.com/kbdfh98uv/TubeLiviano/raw/refs/heads/main/releases/TubeLiviano_Portable_0.5.3_x86.zip).
 
-1. Extraé **todo el ZIP en una carpeta nueva**, por ejemplo `E:\TL052`. Entrá en
+1. Extraé **todo el ZIP en una carpeta nueva**, por ejemplo `E:\TL053`. Entrá en
    la carpeta `TubeLiviano` extraída y abrí `TubeLiviano.exe`. No ejecutes el EXE
    dentro del ZIP ni mezcles DLLs o motores de una versión anterior.
-2. Confirmá **0.5.2** en el título. Pulsá **Probar imagen y audio** para ver un
+2. Confirmá **0.5.3** en el título. Pulsá **Probar imagen y audio** para ver un
    patrón animado y oír un tono de 440 Hz sin Internet. Probá los tres perfiles.
 3. En **Inicio**, escribí un título y pulsá **Buscar** o Enter; también podés usar
    **Pegar / Reproducir** con un enlace de YouTube. **Resultados** muestra título
@@ -31,12 +32,26 @@ como [**TubeLiviano_Portable_0.5.2_x86.zip**](https://github.com/kbdfh98uv/TubeL
 4. **Cancelar** detiene reproducción y extracción; **Reintentar** conserva el
    enlace. En Resultados, cambiar de calidad reintenta el último video sin pegarlo
    otra vez. Cambiarla en Inicio prepara el próximo video, sin abrir uno anterior.
-5. **Inicio** detiene/cancela la actividad y conserva búsqueda, resultados y enlace
+5. En **Resultados**, el botón **Pantalla completa · F11** está junto a
+   Configuración. Se habilita cuando hay una reproducción activa, incluso con
+   el clip offline. Pulsalo o usá **F11** para ampliar el video al monitor actual.
+6. **Inicio** detiene/cancela la actividad y conserva búsqueda, resultados y enlace
    para volver con **Resultados**. **Pausa** pausa/reanuda el video actual.
 
-Atajos: **Ctrl+F** enfoca el buscador, **Ctrl+,** abre Configuración y **Esc**
-cancela la actividad. Tab/Mayús+Tab recorren controles; Enter busca desde el
-buscador. La ventana admite un área cliente mínima de **660 × 450**; en Windows
+En pantalla completa se conserva el mismo reproductor y stream: el cambio de
+ventana no vuelve a resolver el enlace ni reinicia el video. Una barra inferior
+pequeña mantiene **Pausa**, **Cancelar** y **Volver a ventana · Esc / F11**.
+**Esc** vuelve a la ventana manteniendo la reproducción; otra pulsación de Esc en
+la ventana normal cancela. Mantener Esc pulsado al salir no debe detener el video.
+Cancelar, el final del clip o un error vuelven a la vista normal con sus avisos.
+Se restaura el tamaño normal o estado maximizado anterior; cerrar desde pantalla
+completa conserva el tamaño normal para la próxima apertura.
+
+Atajos: **Ctrl+F** enfoca el buscador, **Ctrl+,** abre Configuración y **F11**
+alterna pantalla completa durante la reproducción. **Esc** sale de pantalla
+completa o cancela desde la vista normal. Los atajos F11/Esc de reproducción se
+liberan cuando otra aplicación está activa. Tab/Mayús+Tab recorren controles;
+Enter busca desde el buscador. La ventana admite un área cliente mínima de **660 × 450**; en Windows
 con bordes clásicos corresponde aproximadamente a 676 × 489 píxeles externos.
 
 ## Configuración portable
@@ -66,10 +81,27 @@ abrir un video si está activo en Resultados. Los demás cambios de búfer/hilos
 usan al abrir el próximo. El selector de calidad de Resultados permite reintentar
 también después de un fallo; el selector de modo prepara la siguiente petición.
 
-**Atom · 240p** prepara 240p, búfer 450 ms, prefetch 128 KiB y un hilo.
-**Mínimo · 144p** prepara 144p, 250 ms, 64 KiB y un hilo. Estos botones mantienen
-las demás preferencias; pulsá Guardar para aplicar. **Restablecer** prepara los
-valores iniciales. No son perfiles de rendimiento medidos en un Atom real.
+En **General**, elegí un preset y pulsá **Preparar** para cargar sus valores
+en el borrador. Revisalos en Reproducción/Red y pulsá **Guardar** para aplicarlos.
+**Cancelar** descarta también el preset preparado; elegirlo sin Preparar conserva
+los valores del borrador. Se pueden ajustar sus valores a mano antes de guardar.
+
+| Preset | Calidad | Búfer | Lectura anticipada | Hilos | Modo |
+| --- | --- | --- | --- | --- | --- |
+| Mínimo | 144p | 250 ms | 64 KiB | 1 | Directo |
+| Atom · recomendado | 240p | 450 ms | 128 KiB | 1 | Directo |
+| Conexión inestable | 240p | 1500 ms | 256 KiB | 1 | Directo |
+| 360p · Dos hilos | 360p | 600 ms | 128 KiB | 2 | Directo |
+| Puente | 240p | 800 ms | 128 KiB | 1 | Puente |
+
+Los presets cambian esos cinco campos y conservan volumen/silencio, tema, texto,
+límite de resultados, timeouts, tamaño y dirección/token de sesión del puente.
+Los cuatro presets directos seleccionan **Directo**. Puente requiere preparar el
+servidor de la otra PC; no modifica su dirección. El preset de conexión inestable
+aumenta el búfer y puede demorar más el inicio. **Atom · 240p** sigue siendo la
+configuración inicial recomendada; **360p · Dos hilos** es opcional. No se midió
+el rendimiento de estos presets en un Atom real. **Restablecer** prepara los
+valores iniciales y requiere Guardar.
 
 Un `?token=...` en la dirección del puente sirve **solo durante la sesión**:
 la parte de consulta se elimina al escribir o cargar la URL del INI. Debe volver
@@ -125,8 +157,10 @@ En Windows, cerrá otras instancias y ejecutá **`Probar_offline.cmd`** desde la
 carpeta extraída. No requiere Python, PowerShell ni Internet. Prueba los tres
 clips y deja JSON + `resultado.txt` en una carpeta de `%TEMP%` que muestra al
 terminar. Usa audio dummy: después comprobá sonido con el botón offline normal.
-El [checklist XP/Atom](docs/PRUEBAS_XP_ATOM.md) contiene pasos exactos y una ficha
-para registrar OS, memoria, fluidez, errores y resultados.
+El [checklist 0.5.3](docs/PRUEBAS_0.5.3.md) comprueba pantalla completa y los cinco
+presets. El [checklist base XP/Atom](docs/PRUEBAS_XP_ATOM.md), redactado para 0.5.2,
+conserva la ficha de OS/memoria/fluidez y las pruebas de motores; al repetirlo con
+este portable, el título esperado es **0.5.3**.
 
 Desde Linux, ejecutá desde la raíz del repo o desde `source/` en el ZIP. Se
 requieren MinGW-w64 **i686/MSVCRT**, make, Python 3.12+ y FFmpeg/libx264:
@@ -155,14 +189,15 @@ informan; las dependencias corruptas o clips faltantes impiden generar el ZIP.
 
 ## Release y límites
 
-Las [notas 0.5.2](docs/RELEASE_NOTES_0.5.2.md) describen las correcciones y su
-evidencia; el [checkpoint](docs/CHECKPOINT-0.5.2.md) registra el cierre de la sesión.
+Las [notas 0.5.3](docs/RELEASE_NOTES_0.5.3.md) describen pantalla completa, presets
+y su validación. El [checkpoint 0.5.2](docs/CHECKPOINT-0.5.2.md) conserva la auditoría
+y evidencia de la versión anterior.
 El tamaño y SHA-256 definitivos están en `releases/SHA256SUMS.txt` y en el informe
 de empaquetado. No se promete alcanzar ~40 MB: los dos motores ya ocupan unos
 38 MB antes de VLC.
 
 Código propio **MIT**. VLC, yt-dlp, QuickJS y demás componentes conservan sus
 licencias; consultá [THIRD_PARTY.md](THIRD_PARTY.md) y el compañero
-`TubeLiviano_ThirdParty_Sources_0.5.2.zip`. Las fuentes transitivas y las pruebas
+`TubeLiviano_ThirdParty_Sources_0.5.3.zip`. Las fuentes transitivas y las pruebas
 XP/Atom pendientes se explican allí y en las notas; no se declara una certificación
 de compatibilidad ni de redistribución completa.

@@ -4,15 +4,15 @@
 #include "engine.h"
 
 enum { QUERY=100, SEARCH, PASTE, RESULTS, QUALITY, MODE, BRIDGE, PLAY,
-       PAUSE, CANCEL, RETRY, OFFLINE, SETTINGS, HOME, RESULTS_NAV };
+       PAUSE, CANCEL, RETRY, OFFLINE, SETTINGS, HOME, RESULTS_NAV, FULLSCREEN };
 typedef enum { UI_HOME=0, UI_RESULTS=1 } UiPage;
 typedef struct {
     HWND query, search, paste, list, quality, mode, bridge;
     HWND play, pause, cancel, retry, offline, status, labels, video;
-    HWND settings, home, results_nav;
+    HWND settings, home, results_nav, fullscreen;
 } UiControls;
 typedef struct {
-    BOOL dark, large;
+    BOOL dark, large, fullscreen;
     UiPage page;
     HFONT normal, bold, title, small;
     HBRUSH background, panel, input;

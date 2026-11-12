@@ -73,7 +73,7 @@ void ui_style_free(UiStyle *s) {
 }
 void ui_set_fonts(const UiStyle *s, const UiControls *c) {
     HWND controls[]={c->query,c->search,c->paste,c->list,c->quality,c->mode,c->bridge,
-        c->play,c->pause,c->cancel,c->retry,c->offline,c->settings,c->home,c->results_nav};
+        c->play,c->pause,c->cancel,c->retry,c->offline,c->settings,c->home,c->results_nav,c->fullscreen};
     unsigned i;
     for(i=0;i<sizeof(controls)/sizeof(controls[0]);++i)
         if(controls[i]) SendMessageW(controls[i],WM_SETFONT,(WPARAM)s->normal,TRUE);
@@ -97,6 +97,18 @@ void ui_layout(HWND window, const UiControls *c, const UiStyle *s,
     int x, y, span, field, searchw, options, listw, content_bottom, listtop;
     BOOL home=s->page==UI_HOME;
     (void)window;
+    if(s->fullscreen) {
+        HWND hidden[]={c->query,c->search,c->paste,c->list,c->quality,c->mode,c->bridge,
+            c->play,c->retry,c->offline,c->status,c->labels,c->settings,c->home,c->results_nav};
+        unsigned i;
+        for(i=0;i<sizeof(hidden)/sizeof(hidden[0]);++i) if(hidden[i]) ShowWindow(hidden[i],SW_HIDE);
+        place(c->video,0,0,w,larger(1,h-48),TRUE);
+        place(c->pause,16,h-42,96,36,TRUE);
+        place(c->cancel,120,h-42,108,36,TRUE);
+        place(c->fullscreen,w-280,h-42,264,36,TRUE);
+        return;
+    }
+    place(c->fullscreen,w-m-352,18,210,34,!home);
     place(c->settings,w-m-134,18,134,34,TRUE);
     place(c->home,w/2-(s->large ? 154 : 142),nav+5,s->large ? 148 : 136,43,TRUE);
     place(c->results_nav,w/2+6,nav+5,s->large ? 148 : 136,43,TRUE);
@@ -167,8 +179,12 @@ void ui_paint(HWND window, HDC dc, const UiControls *c, const UiStyle *s,
         t=child_rect(window,c->video); ExcludeClipRect(dc,t.left,t.top,t.right,t.bottom);
     }
     FillRect(dc,&r,s->background);
+    if(s->fullscreen) {
+        t=r; t.top=h-48; fill(dc,&t,RGB(0,0,0));
+        RestoreDC(dc,save); return;
+    }
     logo(dc,m,26,31,22,s->accent);
-    t.left=m+42; t.top=20; t.right=w-m-146; t.bottom=54;
+    t.left=m+42; t.top=20; t.right=w-m-(home ? 146 : 364); t.bottom=54;
     label(dc,L"TubeLiviano",t,s->title,s->fg,DT_SINGLELINE|DT_VCENTER);
     line(dc,m,69,w-m,69,s->border);
     line(dc,m,h-55,w-m,h-55,s->border);

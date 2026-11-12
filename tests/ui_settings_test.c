@@ -15,10 +15,13 @@
 #include <stdio.h>
 #include <wchar.h>
 #include "../src/ui.h"
+#include "../src/settings.h"
 
 #define COUNT(a) (sizeof(a)/sizeof((a)[0]))
 enum { GENERAL=500, PLAYBACK_PAGE=501, NETWORK_PAGE=502, DARK=506,
-       LARGE=507, SETTINGS_QUALITY=510 };
+       LARGE=507, SETTINGS_QUALITY=510, SETTINGS_CACHE=511,
+       SETTINGS_PREFETCH=512, SETTINGS_THREADS=513, SETTINGS_MODE=516,
+       PRESET_SELECT=520, PRESET_PREPARE=521 };
 static const WCHAR sample_query[]=L"Música para una PC liviana";
 static const WCHAR bridge_session_url[]=L"http://192.168.1.70:8787?token=SESSION_ONLY";
 static const WCHAR bridge_close_url[]=L"http://192.168.1.71:8787?token=CLOSE_ONLY";
@@ -168,6 +171,29 @@ static BOOL edit_equals(HWND window, int id, const WCHAR *expected) {
     SendMessageW(GetDlgItem(window,id),WM_GETTEXT,COUNT(value),(LPARAM)value);
     return !lstrcmpW(value,expected);
 }
+static void check_preset_drafts(void) {
+    static const int quality_indices[PRESET_COUNT]={0,1,1,2,1};
+    static const WCHAR *cache_values[PRESET_COUNT]={L"250",L"450",L"1500",L"600",L"800"};
+    static const int prefetch_indices[PRESET_COUNT]={0,1,2,1,1};
+    int preset;
+    CHECK(SendMessageW(GetDlgItem(dialog,PRESET_SELECT),CB_GETCOUNT,0,0)==PRESET_COUNT);
+    for(preset=0;preset<PRESET_COUNT;++preset) {
+        select_combo(dialog,PRESET_SELECT,preset);
+        click(dialog,PRESET_PREPARE);
+        click(dialog,PLAYBACK_PAGE);
+        CHECK(wait_visible(GetDlgItem(dialog,SETTINGS_QUALITY),TRUE));
+        CHECK(SendMessageW(GetDlgItem(dialog,SETTINGS_QUALITY),CB_GETCURSEL,0,0)==quality_indices[preset]);
+        CHECK(edit_equals(dialog,SETTINGS_CACHE,cache_values[preset]));
+        CHECK(SendMessageW(GetDlgItem(dialog,SETTINGS_PREFETCH),CB_GETCURSEL,0,0)==prefetch_indices[preset]);
+        CHECK(SendMessageW(GetDlgItem(dialog,SETTINGS_THREADS),CB_GETCURSEL,0,0)==(preset==PRESET_SMOOTH_360 ? 1 : 0));
+        click(dialog,NETWORK_PAGE);
+        CHECK(SendMessageW(GetDlgItem(dialog,SETTINGS_MODE),CB_GETCURSEL,0,0)==(preset==PRESET_BRIDGE ? 1 : 0));
+        /* Preparing a draft never changes the underlying app or its mode. */
+        CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==1);
+        CHECK(SendMessageW(GetDlgItem(app,MODE),CB_GETCURSEL,0,0)==0);
+        click(dialog,GENERAL);
+    }
+}
 static BOOL background_is(COLORREF expected) {
     DWORD start=GetTickCount(); RECT r;
     do {
@@ -276,7 +302,8 @@ int wmain(int argc, WCHAR **argv) {
     if(argc==3) { screenshot_directory=argv[2]; CreateDirectoryW(screenshot_directory,NULL); }
     ZeroMemory(&process,sizeof(process));
     GetTempPathW(MAX_PATH,temp);
-    _snwprintf(base,MAX_PATH,L"%lsTL-ui-settings-%lu",temp,(unsigned long)GetCurrentProcessId());
+    CHECK(GetTempFileNameW(temp,L"tlu",0,base)!=0);
+    CHECK(DeleteFileW(base));
     CHECK(CreateDirectoryW(base,NULL));
     path(exe,base,L"TubeLiviano.exe"); path(ini,base,L"TubeLiviano.ini");
     CHECK(CopyFileW(argv[1],exe,TRUE));
@@ -313,10 +340,12 @@ int wmain(int argc, WCHAR **argv) {
     CHECK(!IsWindowEnabled(app));
     CHECK(SendMessageW(GetDlgItem(dialog,DARK),BM_GETCHECK,0,0)==BST_CHECKED);
     CHECK(SendMessageW(GetDlgItem(dialog,LARGE),BM_GETCHECK,0,0)==BST_UNCHECKED);
+    check_preset_drafts();
     check_pages(); click(dialog,DARK); click(dialog,LARGE);
     click(dialog,PLAYBACK_PAGE); select_combo(dialog,SETTINGS_QUALITY,0);
     CHECK(close_settings(IDCANCEL));
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==1);
+    CHECK(SendMessageW(GetDlgItem(app,MODE),CB_GETCURSEL,0,0)==0);
     CHECK(SendMessageW(GetDlgItem(app,RESULTS),LB_GETITEMHEIGHT,0,0)==56);
     CHECK(background_is(RGB(16,16,16)));
     CHECK(query_is_preserved(original_query));
@@ -324,7 +353,10 @@ int wmain(int argc, WCHAR **argv) {
     CHECK(open_settings()!=NULL);
     if(!dialog)goto finish;
     click(dialog,DARK); click(dialog,LARGE);
-    click(dialog,PLAYBACK_PAGE); select_combo(dialog,SETTINGS_QUALITY,0);
+    select_combo(dialog,PRESET_SELECT,PRESET_MINIMUM); click(dialog,PRESET_PREPARE);
+    click(dialog,PLAYBACK_PAGE);
+    CHECK(SendMessageW(GetDlgItem(dialog,SETTINGS_QUALITY),CB_GETCURSEL,0,0)==0);
+    CHECK(edit_equals(dialog,SETTINGS_CACHE,L"250"));
     CHECK(close_settings(IDOK));
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==0);
     CHECK(SendMessageW(GetDlgItem(app,RESULTS),LB_GETITEMHEIGHT,0,0)==68);
@@ -334,6 +366,9 @@ int wmain(int argc, WCHAR **argv) {
     CHECK(GetPrivateProfileIntW(L"General",L"DarkTheme",99,ini)==0);
     CHECK(GetPrivateProfileIntW(L"General",L"LargeText",99,ini)==1);
     CHECK(GetPrivateProfileIntW(L"Playback",L"Quality",99,ini)==144);
+    CHECK(GetPrivateProfileIntW(L"Playback",L"CacheMs",99,ini)==250);
+    CHECK(GetPrivateProfileIntW(L"Playback",L"PrefetchKiB",99,ini)==64);
+    CHECK(GetPrivateProfileIntW(L"Playback",L"DecoderThreads",99,ini)==1);
     minimum_layout(); dialog_resource_loop(process.hProcess);
     /* Neither operation sends EN_KILLFOCUS: keyboard shortcuts and WM_CLOSE
      * must read the current native bridge edit before copying/saving prefs. */

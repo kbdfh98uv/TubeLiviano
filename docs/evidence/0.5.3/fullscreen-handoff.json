@@ -1,0 +1,110 @@
+{
+  "version": "0.5.3",
+  "validation_architecture": "same-source x64 Wine surrogate",
+  "app_sha256": "a8052f04f59efe581791817f3cd1d705dbb8a8677d1aeaf2e01454e05e65f3fa",
+  "product_changed": false,
+  "physical_XP_Atom_tested": false,
+  "dummy_audio": true,
+  "tests": [
+    {
+      "case": "fake-no-captures",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/fullscreen_test_x64.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9-controls\\fake_vlc.dll"
+      ],
+      "exit_code": 0,
+      "synthetic_media": true,
+      "checks": 118,
+      "failed": 0,
+      "passed": true,
+      "driver_sha256": "954cfbf775b6a420cc7062f23d2b0be8977c7c504e8c12d5e858866f687813e3",
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-ready-final/fake-no-captures.log"
+    },
+    {
+      "case": "fake-with-captures",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/fullscreen_test_x64.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9-controls\\fake_vlc.dll",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\fullscreen-ready-final\\fake-captures"
+      ],
+      "exit_code": 0,
+      "synthetic_media": true,
+      "checks": 120,
+      "failed": 0,
+      "passed": true,
+      "driver_sha256": "954cfbf775b6a420cc7062f23d2b0be8977c7c504e8c12d5e858866f687813e3",
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-ready-final/fake-with-captures.log"
+    },
+    {
+      "case": "real-with-captures",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/fullscreen_test_x64.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "--real-media",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\fullscreen-real-visible\\real-captures"
+      ],
+      "exit_code": 0,
+      "synthetic_media": false,
+      "checks": 51,
+      "failed": 0,
+      "passed": true,
+      "driver_sha256": "ac8f0afef6d8edc757ce013167a09c3f7f03a4192b7ed57637750bda98a865c0",
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-real-visible/real-with-captures.log"
+    },
+    {
+      "case": "batch",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/batch_test.exe",
+        "Z:\\workspace\\TubeLiviano\\scripts\\probar-offline.cmd"
+      ],
+      "exit_code": 0,
+      "synthetic_media": true,
+      "checks": 127,
+      "failed": 0,
+      "passed": true,
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-focused/batch.log",
+      "executable_sha256": "5a26aea2def5d8c767a4c869e0cfd43f5e97f1be39ab69eaf021c8d55a274530"
+    },
+    {
+      "case": "ui-captures",
+      "command": [
+        "/workspace/toolchain/wine-10.0-amd64-wow64/bin/wine",
+        "/workspace/TubeLiviano/build/reports/session-0.5.3/release/offline-stage-u5ljdqc9-controls/ui_settings_test.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\release\\offline-stage-u5ljdqc9\\TubeLiviano.exe",
+        "Z:\\workspace\\TubeLiviano\\build\\reports\\session-0.5.3\\fullscreen-focused\\ui-captures"
+      ],
+      "exit_code": 0,
+      "synthetic_media": false,
+      "checks": 179,
+      "failed": 0,
+      "passed": true,
+      "log": "/workspace/TubeLiviano/build/reports/session-0.5.3/fullscreen-focused/ui-captures.log",
+      "executable_sha256": "b2049f07720509f11c132644d6a0ad9d68645fa5f555c76d2e92497c759d8dcc"
+    }
+  ],
+  "passed": true,
+  "real_report": {
+    "version": "0.5.3",
+    "frontend_bits": 64,
+    "windows_major": 10,
+    "windows_minor": 0,
+    "selected_engine": "modern",
+    "complete": true,
+    "passed": true,
+    "state": 6,
+    "elapsed_ms": 9259,
+    "decoded_video": 385,
+    "decoded_audio": 691,
+    "displayed_pictures": 177,
+    "played_audio_buffers": 345,
+    "read_bytes": 373258,
+    "first_frame_read_bytes": 56917
+  },
+  "note": "Original fullscreen/maximized restoration assertions retained; readiness observes terminal caption and stable entry placement. Desktop pre-maximize normal-rectangle bookkeeping differs before fullscreen in headless Wine and remains a physical-desktop check. Real mode additionally requires visible generated-clip colors before, during and after fullscreen."
+}

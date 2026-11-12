@@ -10,8 +10,8 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-PORTABLE = DIST / "TubeLiviano_Portable_0.5.2_x86.zip"
-SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.2.zip"
+PORTABLE = DIST / "TubeLiviano_Portable_0.5.3_x86.zip"
+SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.3.zip"
 PREFIX = "TubeLiviano/"
 
 
@@ -56,12 +56,14 @@ class PortableArchive(unittest.TestCase):
             "source/tests/os_detection_test.c",
             "source/tests/settings_test.c", "source/tests/player_options_test.c",
             "source/tests/ui_settings_test.c", "source/tests/batch_test.c",
+            "source/tests/fullscreen_test.c",
             "source/Makefile", "source/LICENSE", "source/docs/VALIDACION.md",
             "source/bridge/server.py", "source/bridge/README.md",
             "source/scripts/fetch-deps.py", "source/scripts/package.py",
             "source/scripts/verify-offline.py", "Probar_offline.cmd",
             "source/tests/main_regression_test.c", "source/tests/fake_vlc.c",
-            "source/docs/PRUEBAS_XP_ATOM.md",
+            "source/docs/PRUEBAS_XP_ATOM.md", "source/docs/PRUEBAS_0.5.3.md",
+            "source/docs/RELEASE_NOTES_0.5.3.md",
             "licenses/dependencies.json", "licenses/vlc-COPYING", "licenses/vlc-COPYING.LIB",
             "licenses/quickjs-LICENSE", "licenses/yt-dlp-THIRD_PARTY_LICENSES.txt",
             "licenses/certifi-LICENSE", "licenses/MPL-2.0.txt",
@@ -131,7 +133,7 @@ class PortableArchive(unittest.TestCase):
     def test_source_companion_and_external_report(self):
         self.assertTrue(SOURCES.is_file(), "Third-party source companion is missing")
         report = json.loads((DIST / "package-report.json").read_text())
-        self.assertEqual(report["version"], "0.5.2")
+        self.assertEqual(report["version"], "0.5.3")
         self.assertEqual(report["portable"]["file"], PORTABLE.name)
         self.assertEqual(report["upstream_sources"]["file"], SOURCES.name)
         self.assertEqual(report["portable"]["bytes"], PORTABLE.stat().st_size)

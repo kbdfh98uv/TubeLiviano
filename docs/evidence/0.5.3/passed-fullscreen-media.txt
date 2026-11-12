@@ -1,0 +1,3 @@
+Real VLC resize playback with dummy audio; physical XP/Atom and audible sound are not checked.
+Fullscreen real media: 51 checks; 0 failures
+X connection to :90 broken (explicit kill or server shutdown).

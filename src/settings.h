@@ -24,8 +24,16 @@ typedef struct {
     WCHAR bridge_url[256];    /* query token is session-only, never written */
 } AppSettings;
 
+enum {
+    PRESET_MINIMUM = 0, PRESET_ATOM, PRESET_STABLE_NETWORK,
+    PRESET_SMOOTH_360, PRESET_BRIDGE, PRESET_COUNT
+};
+
 void settings_defaults(AppSettings *settings);
 void settings_validate(AppSettings *settings);
+/* Changes only playback resource limits and connection mode; a rejected ID
+ * leaves the entire object unchanged. The caller decides when to save/apply. */
+BOOL settings_apply_preset(AppSettings *settings, int preset);
 BOOL settings_load(AppSettings *settings, const WCHAR *base, WCHAR *notice, size_t cap);
 BOOL settings_save(const AppSettings *settings, const WCHAR *base, WCHAR *notice, size_t cap);
 /* TRUE means apply the returned settings to this session, including when a
