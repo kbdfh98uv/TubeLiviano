@@ -139,7 +139,10 @@ sin CLR y con las cinco DLLs del sistema previstas. Tres builds limpios, incluid
 dos directorios nuevos, produjeron el mismo SHA-256:
 `39470649fa0316c687f5fef8eb60b08ca6a5f2128fd6651d5be5309d9414abae`.
 Comandos e imports en `evidence/0.5.4/reproducible-build.json` y
-`compatibility-audit.json`.
+`compatibility-audit.json`. El lector PE de los tests exige símbolos importados
+no vacíos por DLL: el informe inicial dependía de un formato de objdump diferente
+y enumeraba las bibliotecas sin sus funciones. Se corrigió el lector y se añadió
+una regresión que evita aprobar una auditoría vacía.
 
 La validación integrada del mismo código **x64/Wine** aprobó 1692 comprobaciones:
 
