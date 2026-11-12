@@ -1,4 +1,5 @@
 test_both_engines_and_runtime_are_x86 (test_artifact.Artifact.test_both_engines_and_runtime_are_x86) ... ok
+test_frontend_system_imports_and_legacy_apis (test_artifact.Artifact.test_frontend_system_imports_and_legacy_apis) ... ok
 test_native_x86_xp_subsystem_and_size (test_artifact.Artifact.test_native_x86_xp_subsystem_and_size) ... ok
 test_offline_fixtures_certs_and_provenance (test_artifact.Artifact.test_offline_fixtures_certs_and_provenance) ... ok
 test_health_auth_and_bad_inputs (test_bridge.BridgeHTTP.test_health_auth_and_bad_inputs) ... ok
@@ -30,6 +31,6 @@ test_compiled_fixed_file_info_matches_source (test_versions.Versions.test_compil
 test_window_manifest_resource_and_package_agree (test_versions.Versions.test_window_manifest_resource_and_package_agree) ... ok
 
 ----------------------------------------------------------------------
-Ran 30 tests in 22.287s
+Ran 31 tests in 15.770s
 
 OK

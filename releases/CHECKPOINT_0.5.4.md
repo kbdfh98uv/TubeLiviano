@@ -1,6 +1,6 @@
 # Cierre de TubeLiviano 0.5.4
 
-Código: `664ac4b96e142e65b1417da5740193ba4fdc8222`. Base publicada: `bdd14aa` (0.5.3).
+Código: `9e29bdd260d4c6360b38277737a2751c26e40e67`. Base publicada: `bdd14aa` (0.5.3).
 
 | Tarea | Estado | Evidencia | Siguiente |
 | --- | --- | --- | --- |
@@ -9,7 +9,7 @@ Código: `664ac4b96e142e65b1417da5740193ba4fdc8222`. Base publicada: `bdd14aa` (
 | Reapertura | Implementado | Dos enlaces/calidades probados, TTL 2 min; Reintentar fresco; recuperación de URL fallida/sin imagen | L5–L9 del checklist |
 | Cancelación | Aprobada con fixtures | Árbol Job, bloqueo de stdin, cierre mientras prepara VLC | W4 en hardware real |
 | Build x86 | Reproducible | Tres EXE idénticos de 101376 bytes (99 KiB), PE32/i386 XP 5.01 | Ejecutar binario entregable en XP |
-| Regresiones | Aprobadas | 1692 checks x64/Wine + 30 tests host/ZIP sin omitir; plugin 70 y parser 38 adicionales | Pruebas físicas |
+| Regresiones | Aprobadas | 1692 checks x64/Wine + 31 tests host/ZIP sin omitir; plugin 70 y parser 38 adicionales | Pruebas físicas |
 | VLC real | Aprobado bajo Wine | Clips 144/240/360, fullscreen visible y Range parcial | Sonido/fluidez reales |
 | ZIP | Reproducible | Dos empaquetados idénticos; hashes debajo | Descargar/verificar |
 | GitHub | Commit de artefactos y push explícito a main | `git push origin HEAD:refs/heads/main`; comprobar HEAD remoto tras push | No usar Publicar del entorno |
@@ -20,11 +20,16 @@ Ese binario de prueba no se distribuye como x86 ni certifica Windows físico.
 
 ## Artefactos
 
-- [TubeLiviano_Portable_0.5.4_x86.zip](TubeLiviano_Portable_0.5.4_x86.zip): 53998945 bytes; SHA-256
-  `4de53232fdcd5c46634352966b1e92241a8039cac42da713ca7311d985215489`.
+- [TubeLiviano_Portable_0.5.4_x86.zip](TubeLiviano_Portable_0.5.4_x86.zip): 54001394 bytes; SHA-256
+  `bfdf788d52864c102cfc44b08e9f006bd7f20c32b3b2f6e86789ccbc22474ca1`.
 - [TubeLiviano_ThirdParty_Sources_0.5.4.zip](TubeLiviano_ThirdParty_Sources_0.5.4.zip): 45711234 bytes; SHA-256
   `858ff9917564e5a4a479d43cf0eb36687b2e5bc4358eb53792bba0d8f0077813`.
 - EXE x86: SHA-256 `39470649fa0316c687f5fef8eb60b08ca6a5f2128fd6651d5be5309d9414abae`.
+
+La auditoría final lee directamente los descriptores PE y exige símbolos no
+vacíos: identifica 206 imports con nombre en las cinco DLLs. Corrige el informe
+inicial que, por un cambio de formato de objdump, omitía los nombres de funciones.
+El EXE y sus tres builds reproducibles no cambiaron con esa corrección del informe.
 
 El ZIP portable contiene VLC, ambos motores sin modificar, QuickJS, adaptador,
 clips y código propio MIT. Los ZIP anteriores se conservan. Los informes de
