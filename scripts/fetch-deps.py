@@ -12,6 +12,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import re
+import struct
 import ssl
 import subprocess
 import tarfile
@@ -86,7 +88,7 @@ def download(url: str) -> bytes:
         return response.read()
 
 
-def cached(name: str, url: str, digest: str, algorithm='sha256', encoded=False) -> Path:
+def cached(name: str, url: str, digest: str, algorithm='sha256', encoded=False, offline=False) -> Path:
     path = CACHE / name
     def matches(data):
         hashed = hashlib.new(algorithm, data)
@@ -96,6 +98,8 @@ def cached(name: str, url: str, digest: str, algorithm='sha256', encoded=False) 
         if not matches(path.read_bytes()):
             raise SystemExit(f'Checksum mismatch in cached {path}; remove it and retry.')
         return path
+    if offline:
+        raise SystemExit(f'Missing verified cache entry in offline mode: {path}')
     data = download(url)
     if not matches(data):
         raise SystemExit(f'Checksum mismatch downloading {name}; refusing artifact.')
@@ -105,7 +109,32 @@ def cached(name: str, url: str, digest: str, algorithm='sha256', encoded=False) 
     return path
 
 
-def build_quickjs(stage: Path):
+def validate_quickjs(path: Path, imports: str):
+    """Reject native/x64/UCRT outputs before replacing the portable runtime."""
+    data = path.read_bytes()
+    if len(data) < 0x40 or data[:2] != b'MZ':
+        raise SystemExit('QuickJS compiler did not produce a Windows PE executable.')
+    pe = struct.unpack_from('<I', data, 0x3c)[0]
+    opt = pe + 24
+    if (opt + 72 > len(data) or data[pe:pe+4] != b'PE\0\0' or
+            struct.unpack_from('<H', data, pe+4)[0] != 0x14c or
+            struct.unpack_from('<H', data, opt)[0] != 0x10b):
+        raise SystemExit('QuickJS must be PE32/i386; check CC is the x86 MSVCRT cross compiler.')
+    if (struct.unpack_from('<HH', data, opt+40) != (5, 1) or
+            struct.unpack_from('<HH', data, opt+48) != (5, 1)):
+        raise SystemExit('QuickJS must target Windows XP subsystem/OS 5.01.')
+    if struct.unpack_from('<I', data, pe+8)[0] != 0:
+        raise SystemExit('QuickJS linker timestamp is not deterministic.')
+    dlls = {name.lower() for name in re.findall(r'DLL Name:\s*(\S+)', imports)}
+    if dlls != {'kernel32.dll', 'msvcrt.dll'}:
+        raise SystemExit(f'QuickJS has unexpected runtime DLL dependencies: {sorted(dlls)}')
+    for forbidden in ['InitOnceExecuteOnce', 'ConditionVariable', 'GetTickCount64',
+                      'GetSystemTimePreciseAsFileTime', 'GetFinalPathNameByHandle']:
+        if forbidden in imports:
+            raise SystemExit(f'QuickJS XP audit failed: imports {forbidden}')
+
+
+def build_quickjs(stage: Path, offline=False):
     """Build one single-threaded QuickJS x86 runtime for both Windows families.
 
     The official QJS-ng x86 binary imports Vista's native condition-variable
@@ -115,7 +144,7 @@ def build_quickjs(stage: Path):
     """
     name = f'quickjs-{QJS}-source.tar.gz'
     url, digest = ARTIFACTS[name]
-    source_archive = cached(name, url, digest)
+    source_archive = cached(name, url, digest, offline=offline)
     source = ROOT / 'build' / 'vendor' / 'quickjs-xp'
     source.mkdir(parents=True, exist_ok=True)
     with tarfile.open(source_archive) as archive:
@@ -164,28 +193,29 @@ def build_quickjs(stage: Path):
     cmd = [compiler, '-std=gnu11', '-Os', '-fwrapv', '-DNDEBUG', '-D_GNU_SOURCE',
            '-DWIN32_LEAN_AND_MEAN', '-D_WIN32_WINNT=0x0501', '-D__STDC_NO_ATOMICS__=1',
            '-DTUBELIVIANO_QJS_XP', '-DQUICKJS_NG_BUILD', '-static', '-static-libgcc', '-s',
-           '-Wl,--major-subsystem-version,5,--minor-subsystem-version,1', '-o', str(temporary_output),
+           '-march=i686', '-Wl,--no-insert-timestamp,--major-os-version,5,--minor-os-version,1,--major-subsystem-version,5,--minor-subsystem-version,1', '-o', str(temporary_output),
            'qjs.c', 'gen/repl.c', 'gen/standalone.c', 'quickjs.c', 'dtoa.c', 'libregexp.c',
            'libunicode.c', 'quickjs-libc.c', '-lm']
     print('Building single-threaded XP QuickJS x86', flush=True)
     subprocess.run(cmd, cwd=source, check=True)
-    objdump = shutil.which('i686-w64-mingw32-objdump') or shutil.which('objdump')
+    sibling_objdump = Path(compiler).with_name(Path(compiler).name.replace('gcc', 'objdump'))
+    objdump = str(sibling_objdump) if sibling_objdump.is_file() else (shutil.which('i686-w64-mingw32-objdump') or shutil.which('objdump'))
     if not objdump:
         raise SystemExit('objdump is required to audit QuickJS XP imports.')
     imports = subprocess.check_output([objdump, '-p', str(temporary_output)], text=True)
-    for forbidden in ['InitOnceExecuteOnce', 'ConditionVariable', 'GetTickCount64',
-                      'GetSystemTimePreciseAsFileTime', 'GetFinalPathNameByHandle']:
-        if forbidden in imports:
-            raise SystemExit(f'QuickJS XP audit failed: imports {forbidden}')
+    validate_quickjs(temporary_output, imports)
     temporary_output.replace(output)
-    return hashlib.sha256(output.read_bytes()).hexdigest()
+    return {'sha256': hashlib.sha256(output.read_bytes()).hexdigest(),
+            'compiler': subprocess.check_output([compiler, '--version'], text=True).splitlines()[0],
+            'flags': cmd[1:cmd.index('-o')], 'pe_timestamp': 0}
 
 
-def stage_ca_bundle(stage: Path):
+
+def stage_ca_bundle(stage: Path, offline=False):
     """Ship Mozilla roots independently of XP's stale system certificate store."""
     name = f'certifi-{CERTIFI}.tar.gz'
     url, digest = ARTIFACTS[name]
-    source_archive = cached(name, url, digest)
+    source_archive = cached(name, url, digest, offline=offline)
     with tarfile.open(source_archive) as archive:
         pem = archive.extractfile(f'certifi-{CERTIFI}/certifi/cacert.pem').read()
         notice = archive.extractfile(f'certifi-{CERTIFI}/LICENSE').read()
@@ -207,40 +237,50 @@ def stage_ca_bundle(stage: Path):
     licenses.mkdir(parents=True, exist_ok=True)
     (licenses / 'certifi-LICENSE').write_bytes(notice)
     mpl_url, mpl_hash = ARTIFACTS['MPL-2.0.txt']
-    shutil.copy2(cached('MPL-2.0.txt', mpl_url, mpl_hash), licenses / 'MPL-2.0.txt')
+    shutil.copy2(cached('MPL-2.0.txt', mpl_url, mpl_hash, offline=offline), licenses / 'MPL-2.0.txt')
     return {'certifi': CERTIFI, 'certificates': certificate_count,
             'sha256': hashlib.sha256(pem).hexdigest(),
             'path': 'vlc/certs/cacert.pem', 'source': name,
             'purpose': 'Additional portable Mozilla trust roots; TLS verification stays enabled'}
 
 
-def fetch(stage: Path, sources: bool):
+def fetch(stage: Path, sources: bool, offline=False):
     CACHE.mkdir(exist_ok=True)
-    # Check official package catalog hash, even when the package is cached.
-    catalog = json.loads(download(CATALOG))
-    if catalog['packageHashAlgorithm'] != 'SHA512' or catalog['packageHash'] != VLC_HASH:
-        raise SystemExit('NuGet catalog hash differs from pinned LibVLC package hash.')
+    # Online refresh checks the publisher's metadata. Offline reproduction uses
+    # the same immutable artifact pins and cannot make any network request.
+    catalog_cache = CACHE / 'vlc-catalog.json'
+    catalog_bytes = (catalog_cache.read_bytes() if catalog_cache.exists() else None) if offline else download(CATALOG)
+    if catalog_bytes is not None:
+        catalog = json.loads(catalog_bytes)
+        if catalog['packageHashAlgorithm'] != 'SHA512' or catalog['packageHash'] != VLC_HASH:
+            raise SystemExit('NuGet catalog hash differs from pinned LibVLC package hash.')
+        if not offline:
+            catalog_cache.write_bytes(catalog_bytes)
     package = cached(f'videolan.libvlc.windows.{VLC}.nupkg', NUGET,
-                     VLC_HASH, 'sha512', True)
-    qjs_hash = build_quickjs(stage)
+                     VLC_HASH, 'sha512', True, offline=offline)
+    qjs_build = build_quickjs(stage, offline=offline)
     for flavor, owner, version, asset in [
         ('modern', 'yt-dlp/yt-dlp', MODERN, 'yt-dlp_x86.exe'),
         ('xp', 'nicolaasjan/yt-dlp', XP, 'yt-dlp_x86_winXP.exe'),
     ]:
         sums_url = f'https://github.com/{owner}/releases/download/{version}/SHA2-256SUMS'
-        sums = download(sums_url)
-        (CACHE / (flavor + '-SHA2-256SUMS')).write_bytes(sums)
-        published = {line.split(None, 1)[1].lstrip('*'): line.split(None, 1)[0]
-                     for line in sums.decode().splitlines() if line.strip()}
+        sums_cache = CACHE / (flavor + '-SHA2-256SUMS')
+        sums = (sums_cache.read_bytes() if sums_cache.exists() else None) if offline else download(sums_url)
         name = flavor + '-' + asset
         url, digest = ARTIFACTS[name]
-        if published.get(asset) != digest:
-            raise SystemExit(f'Published checksum for {asset} differs from pin.')
-        src = cached(name, url, digest)
+        if sums is not None:
+            published = {line.split(None, 1)[1].lstrip('*'): line.split(None, 1)[0]
+                         for line in sums.decode().splitlines() if line.strip()}
+            if published.get(asset) != digest:
+                raise SystemExit(f'Published checksum for {asset} differs from pin.')
+            if not offline:
+                sums_cache.write_bytes(sums)
+        src = cached(name, url, digest, offline=offline)
         target = stage / 'engines' / flavor / 'yt-dlp.exe'
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, target)
     # Preserve the complete native runtime until tests justify a smaller profile.
+    vlc_files = {}
     with zipfile.ZipFile(package) as archive:
         for item in archive.infolist():
             if not item.filename.startswith('build/x86/') or item.is_dir():
@@ -252,27 +292,29 @@ def fetch(stage: Path, sources: bool):
                 continue
             target = stage / 'vlc' / rel
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(archive.read(item))
+            data = archive.read(item)
+            target.write_bytes(data)
+            vlc_files['vlc/' + rel.as_posix()] = hashlib.sha256(data).hexdigest()
     licenses = stage / 'licenses'
     licenses.mkdir(parents=True, exist_ok=True)
-    ca_bundle = stage_ca_bundle(stage)
+    ca_bundle = stage_ca_bundle(stage, offline=offline)
     for name in ['vlc-COPYING', 'vlc-COPYING.LIB', 'yt-dlp-LICENSE', 'quickjs-LICENSE',
                  'yt-dlp-THIRD_PARTY_LICENSES.txt']:
         url, digest = ARTIFACTS[name]
-        shutil.copy2(cached(name, url, digest), licenses / name)
+        shutil.copy2(cached(name, url, digest, offline=offline), licenses / name)
     manifest = {'vlc': VLC, 'modern_yt_dlp': MODERN, 'xp_yt_dlp_fork': XP, 'quickjs_ng': QJS,
                 'ca_bundle': ca_bundle,
                 'quickjs_build': {'target': 'i686 Windows XP 5.01, single-threaded',
-                                  'disabled': ['os.Worker', 'Atomics'], 'sha256': qjs_hash,
+                                  'disabled': ['os.Worker', 'Atomics'], **qjs_build,
                                   'recipe': 'source/scripts/fetch-deps.py:build_quickjs'},
                 'artifacts': {n: {'url': u, 'sha256': h} for n, (u, h) in ARTIFACTS.items()},
-                'vlc_nuget': {'url': NUGET, 'sha512_base64': VLC_HASH}}
+                'vlc_nuget': {'url': NUGET, 'sha512_base64': VLC_HASH}, 'vlc_files': vlc_files}
     (licenses / 'dependencies.json').write_text(json.dumps(manifest, indent=2) + '\n')
     if sources:
         for name in ['modern-yt-dlp.tar.gz', 'xp-yt-dlp.tar.gz', 'vlc-3.0.21-source.tar.gz',
                      'quickjs-0.18.0-source.tar.gz', 'yt_dlp_ejs-0.8.0.tar.gz']:
             url, digest = ARTIFACTS[name]
-            cached(name, url, digest)
+            cached(name, url, digest, offline=offline)
     print('Native x86 runtime staged at', stage)
 
 
@@ -280,5 +322,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stage', type=Path, default=ROOT / 'build' / 'portable')
     parser.add_argument('--sources', action='store_true', help='also fetch upstream source archives')
+    parser.add_argument('--offline', action='store_true', help='require pinned local cache; never access the network')
     args = parser.parse_args()
-    fetch(args.stage.resolve(), args.sources)
+    fetch(args.stage.resolve(), args.sources, args.offline)

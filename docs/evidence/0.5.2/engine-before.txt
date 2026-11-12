@@ -1,0 +1,4 @@
+Embedded NUL JSON accepted: 1 (expected 0)
+Embedded NUL URL accepted: 1 (expected 0)
+Directory engine accepted: 1 (expected 0)
+3 behavior checks; 3 failed

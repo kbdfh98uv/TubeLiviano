@@ -32,6 +32,13 @@ compilación desactiva `os.Worker` y `Atomics`, no utilizados por el solucionado
 JavaScript de yt-dlp; la modificación y comando de compilación están en
 `scripts/fetch-deps.py:build_quickjs`. Se auditan imports para excluir APIs conocidas
 posteriores a XP. Esto es evidencia estática, no una prueba en XP real.
+Desde 0.5.2 el linker fija el timestamp PE en cero y la etapa temporal se valida
+antes de reemplazar `qjs.exe`. Se exige PE32/i386, subsistema/OS 5.01 y únicamente
+KERNEL32/MSVCRT; también se rechazan imports modernos conocidos. El manifiesto
+registra compilador y flags. La reproducción offline verifica las mismas sumas
+de entrada y falla si falta o está alterada la caché; no intenta descargar para
+disimular un faltante. Dos builds con el mismo toolchain fueron idénticos en esta
+sesión; no se garantiza identidad entre compiladores diferentes.
 El ZIP no incorpora código .NET: de NuGet se extraen únicamente los
 DLLs y recursos nativos x86. Los hashes y URLs quedan en
 `licenses/dependencies.json`. No actualizar un motor con el de la otra carpeta.
@@ -61,7 +68,7 @@ ni de nombres HTTPS. El script comprueba el SHA-256 del sdist y que el bundle PE
 se parsea completo. Esto evita depender exclusivamente del almacén obsoleto de XP;
 no garantiza que toda combinación servidor/TLS/VLC/XP funcione sin prueba real.
 
-`scripts/package.py` crea también `TubeLiviano_ThirdParty_Sources_0.5.1.zip` con los
+`scripts/package.py` crea también `TubeLiviano_ThirdParty_Sources_0.5.2.zip` con los
 archivos fuente upstream descargados, recetas y manifiesto. Al redistribuir, alojar
 ese ZIP junto al portable, con el mismo acceso gratuito, y conservar estos avisos.
 El archivo complementario contiene las fuentes VLC/yt-dlp y recetas contrib; no

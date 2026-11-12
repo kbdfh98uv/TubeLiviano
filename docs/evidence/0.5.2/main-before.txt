@@ -1,0 +1,13 @@
+CASE late-player-error exit=0
+FAIL 114: code!=0
+FAIL 115: contains(report,"\"passed\":false")
+CASE unwritable-report exit=0
+FAIL 114: code!=0
+FAIL 136: wait_exit(&process,6000,&code)
+CASE close-enter exit=99 elapsed=6003 marker=1
+FAIL 139: code==0
+FAIL 139: GetFileAttributesW(marker)==INVALID_FILE_ATTRIBUTES
+CASE long-path base-length=242 friendly-path-error=0
+FAIL 164: found_path_message
+Main regressions: 35 checks; 7 failures (synthetic LibVLC, no playback claim)
+X connection to :92 broken (explicit kill or server shutdown).

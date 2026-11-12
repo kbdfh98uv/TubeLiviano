@@ -6,10 +6,12 @@ Writes current-run JSON reports, verifies decoded video+audio, and uses a local
 HTTP Range origin to measure bytes served at first displayed frame. No YouTube.
 """
 import http.server
+import hashlib
 import json
 import os
 import pathlib
 import re
+import struct
 import subprocess
 import threading
 import time
@@ -17,7 +19,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PORTABLE = pathlib.Path(os.environ.get("TL_TEST_STAGE", str(ROOT / "build/portable")))
-REPORTS = ROOT / "build/reports"
+REPORTS = pathlib.Path(os.environ.get("TL_REPORT_DIR", str(ROOT / "build/reports")))
 REPORTS.mkdir(parents=True, exist_ok=True)
 
 
@@ -71,6 +73,15 @@ class Origin(http.server.BaseHTTPRequestHandler):
 
 class Playback(unittest.TestCase):
     def launch(self, media, label, milliseconds=5500):
+        binary = (PORTABLE / "TubeLiviano.exe").read_bytes()
+        self.assertEqual(binary[:2], b"MZ", "Application is not a PE executable")
+        pe_offset = struct.unpack_from("<I", binary, 60)[0]
+        machine = struct.unpack_from("<H", binary, pe_offset + 4)[0]
+        self.assertIn(machine, (0x14c, 0x8664), "Unknown validation architecture")
+        actual_arch = "x86" if machine == 0x14c else "x64"
+        declared_arch = os.environ.get("TL_VALIDATION_ARCH")
+        if declared_arch:
+            self.assertEqual(declared_arch, actual_arch, "Declared architecture differs from actual executable")
         report = REPORTS / (label + ".json")
         report.unlink(missing_ok=True)
         win = lambda p: "Z:" + str(p).replace("/", "\\")
@@ -80,10 +91,16 @@ class Playback(unittest.TestCase):
             result = subprocess.run(cmd, stdout=output, stderr=output, timeout=70)
         self.assertTrue(report.exists(), f"App did not produce {report}; see .log")
         data = json.loads(report.read_text())
+        self.assertEqual(data.get("frontend_bits"), 64 if actual_arch == "x64" else 32,
+                         "Runtime bitness does not match the PE architecture")
+        data["validation_architecture"] = actual_arch
+        data["surrogate"] = machine == 0x8664 or os.environ.get("TL_VALIDATION_SURROGATE") == "1"
+        data["binary_sha256"] = hashlib.sha256(binary).hexdigest()
+        report.write_text(json.dumps(data, indent=2) + "\n")
         self.assertEqual(result.returncode, 0, data)
         self.assertTrue(data["complete"], data)
         self.assertTrue(data["passed"], data)
-        for key in ("decoded_video", "decoded_audio", "displayed_pictures"):
+        for key in ("decoded_video", "decoded_audio", "displayed_pictures", "played_audio_buffers"):
             self.assertGreater(data[key], 0, data)
         return data
 
@@ -100,7 +117,10 @@ class Playback(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            data = self.launch(f"http://127.0.0.1:{server.server_port}/clip.mp4", "range-96s", 4500)
+            # The deadline includes first-load DLL/plugin initialization. Allow
+            # cold startup while retaining the strict first-frame byte fraction
+            # assertion; the 96s source still cannot download in this interval.
+            data = self.launch(f"http://127.0.0.1:{server.server_port}/clip.mp4", "range-96s", 12000)
             data["origin_sent_bytes"] = Origin.sent
             data["file_bytes"] = len(Origin.data)
             data["range_requests"] = Origin.ranges

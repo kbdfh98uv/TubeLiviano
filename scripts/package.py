@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""Build the portable ZIP and a separate upstream-source companion archive.
+"""Build verified portable/source ZIPs from a prepared native Windows stage.
 
-Run after fetch-deps.py --sources, the native build, and runtime smoke tests.
-No downloads occur here. The stage must already contain working dependencies.
+All runtime inputs and upstream sources are checked before an archive is written.
+No downloads occur here. Unexpected stage files are reported and never packaged.
 """
 from __future__ import annotations
 import argparse
+import base64
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
 import shutil
+import struct
+import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.5.1'
+VERSION = '0.5.2'
 
-# Minimal multimedia profile: native HTTP/TLS, MP4/MPEG-TS, H264/AAC/MP3,
-# software chroma conversion, waveOut/DirectSound and GDI/DirectX video output.
-# Keep the normal/full profile unless this exact reduced profile was smoke-tested.
+# This exact reduced profile must be used by the offline playback validation.
 SLIM_PLUGINS = {
     'access': ['filesystem', 'http', 'https', 'tcp', 'udp', 'imem', 'access_imem'],
     'audio_filter': ['audio_format', 'trivial_channel_mixer', 'simple_channel_mixer',
@@ -33,18 +35,156 @@ SLIM_PLUGINS = {
     'video_output': ['wingdi', 'directdraw', 'direct3d9', 'drawable', 'vdummy',
                      'vmem', 'winhibit'],
 }
+LICENSE_NAMES = ['vlc-COPYING', 'vlc-COPYING.LIB', 'yt-dlp-LICENSE',
+                 'quickjs-LICENSE', 'yt-dlp-THIRD_PARTY_LICENSES.txt',
+                 'certifi-LICENSE', 'MPL-2.0.txt']
 
 
 def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def is_pe32(path):
+def dependency_lock():
+    spec = importlib.util.spec_from_file_location('tubeliviano_dependency_lock', ROOT / 'scripts/fetch-deps.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def pe_info(path):
     data = path.read_bytes()
-    if data[:2] != b'MZ':
+    if len(data) < 0x40 or data[:2] != b'MZ':
+        raise SystemExit(f'{path} is not a Windows PE executable/DLL.')
+    offset = struct.unpack_from('<I', data, 0x3c)[0]
+    optional = offset + 24
+    if (optional + 216 > len(data) or data[offset:offset+4] != b'PE\0\0' or
+            struct.unpack_from('<H', data, offset+4)[0] != 0x14c or
+            struct.unpack_from('<H', data, optional)[0] != 0x10b):
+        raise SystemExit(f'{path} is not PE32/i386.')
+    return data, offset, optional
+
+
+def is_pe32(path):
+    try:
+        pe_info(path)
+        return True
+    except SystemExit:
         return False
-    offset = int.from_bytes(data[0x3c:0x40], 'little')
-    return data[offset:offset+6] == b'PE\0\0\x4c\x01'
+
+
+def slim_vlc_path(relative):
+    rel = Path(relative)
+    if rel.parts[:2] == ('vlc', 'plugins'):
+        if len(rel.parts) != 4:
+            return False
+        family, name = rel.parts[2:]
+        return family == 'video_chroma' or name in {
+            f'lib{x}_plugin.dll' for x in SLIM_PLUGINS.get(family, [])}
+    return rel.parts[:2] not in [('vlc', 'lua'), ('vlc', 'hrtfs')]
+
+
+def verified_file(stage, relative):
+    path = stage / relative
+    if not path.is_file() or not path.resolve().is_relative_to(stage.resolve()):
+        raise SystemExit(f'Missing or external runtime file: {path}')
+    return path
+
+
+def expect_hash(path, digest):
+    if sha256(path) != digest:
+        raise SystemExit(f'Checksum mismatch: {path}')
+
+
+def verified_source(cache, name, lock):
+    path = cache / name
+    if not path.is_file():
+        raise SystemExit(f'Missing upstream cache: {path}; run fetch-deps.py --sources.')
+    expect_hash(path, lock.ARTIFACTS[name][1])
+    return path
+
+
+def validate_stage(stage, slim=False, cache=None, lock=None):
+    """Return the exact runtime file set after preflight, without mutations."""
+    cache = cache or ROOT / '.cache'
+    lock = lock or dependency_lock()
+    manifest_path = verified_file(stage, 'licenses/dependencies.json')
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (ValueError, OSError) as exc:
+        raise SystemExit(f'Invalid dependency manifest: {exc}')
+    runtime = {'TubeLiviano.exe', 'runtimes/qjs.exe', 'vlc/certs/cacert.pem',
+               'licenses/dependencies.json'}
+    for flavor, name in [('modern', 'modern-yt-dlp_x86.exe'), ('xp', 'xp-yt-dlp_x86_winXP.exe')]:
+        relative = f'engines/{flavor}/yt-dlp.exe'
+        path = verified_file(stage, relative)
+        digest = lock.ARTIFACTS[name][1]
+        if manifest.get('artifacts', {}).get(name, {}).get('sha256') != digest:
+            raise SystemExit(f'Engine manifest differs from the source pin: {name}')
+        expect_hash(path, digest)
+        runtime.add(relative)
+    try:
+        expect_hash(verified_file(stage, 'runtimes/qjs.exe'), manifest['quickjs_build']['sha256'])
+    except KeyError as exc:
+        raise SystemExit(f'Missing QuickJS provenance: {exc}')
+    qjs, pe, optional = pe_info(stage / 'runtimes/qjs.exe')
+    if (struct.unpack_from('<I', qjs, pe+8)[0] != 0 or
+            struct.unpack_from('<HH', qjs, optional+40) != (5, 1) or
+            struct.unpack_from('<HH', qjs, optional+48) != (5, 1)):
+        raise SystemExit('QuickJS is not the deterministic XP 5.01 build; refresh dependencies.')
+    cert_source = verified_source(cache, f'certifi-{lock.CERTIFI}.tar.gz', lock)
+    with tarfile.open(cert_source) as archive:
+        ca = archive.extractfile(f'certifi-{lock.CERTIFI}/certifi/cacert.pem').read()
+        ca_notice = archive.extractfile(f'certifi-{lock.CERTIFI}/LICENSE').read()
+    ca_hash = hashlib.sha256(ca).hexdigest()
+    if manifest.get('ca_bundle', {}).get('sha256') != ca_hash:
+        raise SystemExit('CA manifest differs from the verified Certifi source.')
+    expect_hash(verified_file(stage, 'vlc/certs/cacert.pem'), ca_hash)
+    for name in LICENSE_NAMES:
+        relative = f'licenses/{name}'
+        path = verified_file(stage, relative)
+        if name == 'certifi-LICENSE':
+            if path.read_bytes() != ca_notice:
+                raise SystemExit('Certifi license differs from the verified source.')
+        else:
+            expect_hash(path, lock.ARTIFACTS[name][1])
+        runtime.add(relative)
+    package = cache / f'videolan.libvlc.windows.{lock.VLC}.nupkg'
+    if not package.is_file():
+        raise SystemExit(f'Missing verified VLC package cache: {package}')
+    if base64.b64encode(hashlib.sha512(package.read_bytes()).digest()).decode() != lock.VLC_HASH:
+        raise SystemExit('VLC NuGet cache differs from the pinned SHA512.')
+    if manifest.get('vlc_nuget', {}).get('sha512_base64') != lock.VLC_HASH:
+        raise SystemExit('VLC manifest differs from the source pin.')
+    with zipfile.ZipFile(package) as archive:
+        for item in archive.infolist():
+            if item.is_dir() or not item.filename.startswith('build/x86/'):
+                continue
+            rel = Path(item.filename[len('build/x86/'):])
+            if rel.is_absolute() or '..' in rel.parts:
+                raise SystemExit('Unsafe VLC archive path.')
+            if rel.parts[0] == 'include' or rel.suffix == '.lib':
+                continue
+            relative = 'vlc/' + rel.as_posix()
+            if slim and not slim_vlc_path(relative):
+                continue
+            expect_hash(verified_file(stage, relative), hashlib.sha256(archive.read(item)).hexdigest())
+            runtime.add(relative)
+    for height in (144, 240, 360):
+        relative = f'media/prueba-{height}.mp4'
+        path = verified_file(stage, relative)
+        with path.open('rb') as stream:
+            if stream.read(12)[4:8] != b'ftyp':
+                raise SystemExit(f'Invalid offline MP4 fixture: {path}')
+        runtime.add(relative)
+    for relative in sorted(runtime):
+        path = verified_file(stage, relative)
+        if path.suffix.lower() in ('.exe', '.dll'):
+            pe_info(path)
+    frontend, _, optional = pe_info(stage / 'TubeLiviano.exe')
+    if (struct.unpack_from('<HH', frontend, optional+48) != (5, 1) or
+            struct.unpack_from('<II', frontend, optional+96+14*8) != (0, 0)):
+        raise SystemExit('Frontend must be native XP subsystem 5.01, without CLR.')
+    return manifest, runtime
 
 
 def source_files():
@@ -60,31 +200,26 @@ def source_files():
             yield file
 
 
-def make_zip(path: Path, files):
+def make_zip(path, files):
     with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for source, target in files:
             info = zipfile.ZipInfo(str(target).replace('\\', '/'), (2026, 11, 10, 0, 0, 0))
-            info.external_attr = 0o644 << 16
+            info.external_attr = (0o755 if source.suffix == '.sh' else 0o644) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(info, source.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
 
 
-def package(stage: Path, output: Path, slim: bool):
-    required = ['TubeLiviano.exe', 'vlc/libvlc.dll', 'vlc/libvlccore.dll',
-                'engines/modern/yt-dlp.exe', 'engines/xp/yt-dlp.exe',
-                'runtimes/qjs.exe',
-                'vlc/certs/cacert.pem', 'licenses/certifi-LICENSE', 'licenses/MPL-2.0.txt',
-                'licenses/dependencies.json']
-    for relative in required:
-        file = stage / relative
-        if not file.is_file():
-            raise SystemExit(f'Missing {file}; build and fetch dependencies first.')
-        if file.suffix in {'.exe', '.dll'} and not is_pe32(file):
-            raise SystemExit(f'{file} is not a PE32 i386 executable/DLL.')
+def package(stage, output, slim):
+    lock = dependency_lock()
+    manifest, runtime = validate_stage(stage, slim, lock=lock)
+    vendor_sources = []
+    for name in ['modern-yt-dlp.tar.gz', 'xp-yt-dlp.tar.gz', f'vlc-{lock.VLC}-source.tar.gz',
+                 f'quickjs-{lock.QJS}-source.tar.gz', 'yt_dlp_ejs-0.8.0.tar.gz',
+                 f'certifi-{lock.CERTIFI}.tar.gz']:
+        vendor_sources.append((verified_source(ROOT / '.cache', name, lock), Path('upstream') / name))
     sources = list(source_files())
     if not (ROOT / 'README.md').is_file() or not (ROOT / 'LICENSE').is_file():
         raise SystemExit('README and MIT license are required.')
-    # Refresh only generated source/docs copies, preserving runtime/media fixtures.
     source_dir = stage / 'source'
     if source_dir.exists():
         shutil.rmtree(source_dir)
@@ -92,10 +227,18 @@ def package(stage: Path, output: Path, slim: bool):
         destination = source_dir / file.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(file, destination)
-    for name in ['README.md', 'LICENSE', 'THIRD_PARTY.md']:
+    generated = ['README.md', 'LICENSE', 'THIRD_PARTY.md']
+    for name in generated:
         shutil.copy2(ROOT / name, stage / name)
-    # The source copy uses repository-relative documentation links. The portable
-    # root copy points into source/, where the documents and bridge actually live.
+    batch = ROOT / 'scripts/probar-offline.cmd'
+    if not batch.is_file():
+        raise SystemExit('Missing scripts/probar-offline.cmd; the portable offline check is required.')
+    # XP cmd.exe receives ASCII/CRLF commands regardless of the build host.
+    batch_bytes = batch.read_bytes().replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+    if batch_bytes.startswith(b'\xef\xbb\xbf') or not batch_bytes.isascii():
+        raise SystemExit('The XP batch check must be ASCII without a BOM.')
+    (stage / 'Probar_offline.cmd').write_bytes(batch_bytes.replace(b'\n', b'\r\n'))
+    generated.append('Probar_offline.cmd')
     readme = (stage / 'README.md').read_text()
     readme = readme.replace('](docs/', '](source/docs/').replace('](bridge/', '](source/bridge/')
     readme = readme.replace('`docs/VALIDACION.md`', '`source/docs/VALIDACION.md`')
@@ -107,49 +250,36 @@ def package(stage: Path, output: Path, slim: bool):
         for link in re.findall(r'\]\(([^)]+)\)', readme_path.read_text()):
             if '://' in link or link.startswith(('#', 'mailto:')):
                 continue
-            target = readme_path.parent / link.split('#', 1)[0]
-            if not target.is_file():
+            if not (readme_path.parent / link.split('#', 1)[0]).is_file():
                 raise SystemExit(f'Broken packaged README link: {readme_path} -> {link}')
-    output.mkdir(parents=True, exist_ok=True)
-    files = []
-    omitted = []
-    for file in sorted(stage.rglob('*')):
-        if not file.is_file():
-            continue
-        rel = file.relative_to(stage)
-        if slim and rel.parts[:2] == ('vlc', 'plugins'):
-            if len(rel.parts) != 4:
-                omitted.append(str(rel)); continue
-            family, name = rel.parts[2:]
-            allowed = family == 'video_chroma' or name in {
-                f'lib{x}_plugin.dll' for x in SLIM_PLUGINS.get(family, [])}
-            if not allowed:
-                omitted.append(str(rel)); continue
-        if slim and rel.parts[:2] in [('vlc', 'lua'), ('vlc', 'hrtfs')]:
-            omitted.append(str(rel)); continue
-        files.append((file, Path('TubeLiviano') / rel))
-    name = f'TubeLiviano_Portable_{VERSION}_x86.zip'
-    make_zip(output / name, files)
-    vendor_sources = []
-    for name_source in ['modern-yt-dlp.tar.gz', 'xp-yt-dlp.tar.gz', 'vlc-3.0.21-source.tar.gz',
-                        'quickjs-0.18.0-source.tar.gz', 'yt_dlp_ejs-0.8.0.tar.gz',
-                        'certifi-2026.10.23.tar.gz']:
-        file = ROOT / '.cache' / name_source
-        if not file.is_file():
-            raise SystemExit(f'Missing upstream source: {file}. Run fetch-deps.py --sources.')
-        vendor_sources.append((file, Path('upstream') / name_source))
+    accepted = runtime | set(generated)
+    files = [(stage / relative, Path('TubeLiviano') / relative) for relative in sorted(accepted)]
+    files += [(file, Path('TubeLiviano/source') / file.relative_to(source_dir))
+              for file in sorted(source_dir.rglob('*')) if file.is_file()]
+    included = {str(target.relative_to('TubeLiviano')) for _, target in files}
+    omitted = [str(file.relative_to(stage)) for file in sorted(stage.rglob('*'))
+               if file.is_file() and str(file.relative_to(stage)) not in included]
     vendor_sources += [(ROOT / 'THIRD_PARTY.md', Path('THIRD_PARTY.md')),
                        (ROOT / 'scripts/fetch-deps.py', Path('recipes/fetch-deps.py')),
                        (stage / 'licenses/dependencies.json', Path('dependencies.json'))]
+    output.mkdir(parents=True, exist_ok=True)
+    name = f'TubeLiviano_Portable_{VERSION}_x86.zip'
     source_name = f'TubeLiviano_ThirdParty_Sources_{VERSION}.zip'
-    make_zip(output / source_name, vendor_sources)
+    portable_tmp, source_tmp = output / (name + '.tmp'), output / (source_name + '.tmp')
+    make_zip(portable_tmp, files)
+    make_zip(source_tmp, vendor_sources)
+    portable_tmp.replace(output / name)
+    source_tmp.replace(output / source_name)
     report = {'version': VERSION, 'vlc_profile': 'slim' if slim else 'full',
               'portable': {'file': name, 'bytes': (output / name).stat().st_size,
                            'sha256': sha256(output / name)},
               'upstream_sources': {'file': source_name, 'bytes': (output / source_name).stat().st_size,
                                    'sha256': sha256(output / source_name)},
-              'files': len(files), 'omitted_vlc_files': omitted}
-    (output / 'package-report.json').write_text(json.dumps(report, indent=2) + '\n')
+              'files': len(files), 'omitted_vlc_files': [p for p in omitted if p.startswith('vlc/')],
+              'excluded_stage_files': omitted}
+    report_tmp = output / 'package-report.json.tmp'
+    report_tmp.write_text(json.dumps(report, indent=2) + '\n')
+    report_tmp.replace(output / 'package-report.json')
     for item in [report['portable'], report['upstream_sources']]:
         print(f"{item['file']}: {item['bytes'] / 1_000_000:.2f} MB; SHA256 {item['sha256']}")
     print('VLC profile:', report['vlc_profile'], '; runtime tests must use the same profile.')

@@ -1,0 +1,80 @@
+{
+  "started_utc": "2026-11-11T09:56:58.099607+00:00",
+  "complete": true,
+  "passed": false,
+  "surrogate": true,
+  "control_tests_requested": true,
+  "architecture": "x64",
+  "commands": [
+    [
+      "/workspace/toolchain/root/usr/bin/x86_64-w64-mingw32-windres",
+      "src/app.rc",
+      "/workspace/TubeLiviano/build/reports/session-0.5.2/release-candidate/offline-stage-kkulkd7b/app.o"
+    ],
+    [
+      "/workspace/toolchain/root/usr/bin/x86_64-w64-mingw32-gcc",
+      "-std=c99",
+      "-D__USE_MINGW_ANSI_STDIO=0",
+      "-Os",
+      "-DUNICODE",
+      "-D_UNICODE",
+      "-D_WIN32_WINNT=0x0501",
+      "-DWINVER=0x0501",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-ffunction-sections",
+      "src/main.c",
+      "src/player.c",
+      "src/engine.c",
+      "src/os_detect.c",
+      "src/settings.c",
+      "src/ui.c",
+      "/workspace/TubeLiviano/build/reports/session-0.5.2/release-candidate/offline-stage-kkulkd7b/app.o",
+      "-mwindows",
+      "-static-libgcc",
+      "-s",
+      "-Wl,--gc-sections,--no-insert-timestamp,--major-os-version,5,--minor-os-version,1,--major-subsystem-version,5,--minor-subsystem-version,1",
+      "-luser32",
+      "-lgdi32",
+      "-lshell32",
+      "-o",
+      "/workspace/TubeLiviano/build/reports/session-0.5.2/release-candidate/offline-stage-kkulkd7b/TubeLiviano.exe"
+    ],
+    [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "tests/playback.py"
+    ]
+  ],
+  "limitations": [
+    "No live YouTube",
+    "No physical XP/Atom execution",
+    "Dummy audio sink; audible sound not checked",
+    "Same-source x64 surrogate does not execute or certify the delivered x86 binary"
+  ],
+  "stage": "/workspace/TubeLiviano/build/reports/session-0.5.2/release-candidate/offline-stage-kkulkd7b",
+  "binary_sha256": "bbb04e0a186d34c791ea927315bf173e4ef86e26ba9490a836c24324454363aa",
+  "failure": "Command exited 1; inspect playback.log",
+  "finished_utc": "2026-11-11T09:57:37.199434+00:00",
+  "range_report": {
+    "version": "0.5.2",
+    "frontend_bits": 64,
+    "windows_major": 10,
+    "windows_minor": 0,
+    "selected_engine": "unavailable",
+    "complete": true,
+    "passed": false,
+    "state": 3,
+    "elapsed_ms": 4569,
+    "decoded_video": 0,
+    "decoded_audio": 0,
+    "displayed_pictures": 0,
+    "played_audio_buffers": 0,
+    "read_bytes": 73728,
+    "first_frame_read_bytes": 0,
+    "validation_architecture": "x64",
+    "surrogate": true,
+    "binary_sha256": "bbb04e0a186d34c791ea927315bf173e4ef86e26ba9490a836c24324454363aa"
+  },
+  "interpretation": "The fixed 4500 ms includes synchronous first VLC core/plugin initialization before HTTP open. This run ended with only 73728 bytes read and no decoded samples. Increase only the observation window; keep positive media counters, Range, first-frame fraction and incomplete-download assertions."
+}

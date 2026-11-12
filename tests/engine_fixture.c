@@ -24,6 +24,23 @@ int wmain(int argc, WCHAR **argv)
     if (has(argc, argv, L"--hold")) { Sleep(30000); return 0; }
     if (has(argc, argv, L"-F")) return 90;
     if (has(argc, argv, L"--dump-json")) {
+        if (!wcscmp(target,L"ytsearch12:six")) return 96;
+        if (!wcscmp(target,L"ytsearch6:six") || !wcscmp(target,L"ytsearch12:limit")) {
+            int i;
+            for (i=0; i<12; ++i) puts("{\"id\":\"abcdefghijk\",\"title\":\"Limit\"}");
+            return 0;
+        }
+        if (!wcscmp(target,L"ytsearch12:configuredtimeout")) { Sleep(35000); return 0; }
+        if (!wcscmp(target,L"ytsearch12:nul")) {
+            static const char payload[]="{\"id\":\"abcdefghijk\",\"title\":\"valid prefix\"}\n\0trailing garbage";
+            fwrite(payload,1,sizeof(payload)-1,stdout); return 0;
+        }
+        if (!wcscmp(target,L"ytsearch12:large")) {
+            int i;
+            fputs("{\"id\":\"abcdefghijk\",\"title\":\"Large\",\"channel\":\"Canal\",\"duration\":96,\"extra\":\"",stdout);
+            for(i=0;i<81920;++i)putchar('a');
+            puts("\"}"); return 0;
+        }
         if (!wcscmp(target,L"ytsearch12:loaderfail")) ExitProcess(0xC0000139UL);
         if (!wcscmp(target,L"ytsearch12:cleanenv")) {
             WCHAR value[32];
@@ -63,6 +80,15 @@ int wmain(int argc, WCHAR **argv)
         return 0;
     }
     if (!has(argc, argv, L"--get-url")) return 92;
+    if (!wcscmp(target,L"https://fixture/configuredtimeout")) { Sleep(35000); return 0; }
+    if (!wcscmp(target,L"https://fixture/hang")) { Sleep(30000); return 0; }
+    if (!wcscmp(target,L"https://fixture/nativecrash")) ExitProcess(0xC0000005UL);
+    if (!wcscmp(target,L"https://fixture/usageerror")) return 2;
+    if (!wcscmp(target,L"https://fixture/loaderfail")) ExitProcess(0xC0000139UL);
+    if (!wcscmp(target,L"https://fixture/nul")) {
+        static const char payload[]="https://fixture/video\n\0file:///hidden";
+        fwrite(payload,1,sizeof(payload)-1,stdout); return 0;
+    }
     fmt = has(argc, argv, L"--format");
     js = has(argc, argv, L"--js-runtimes");
     if (!js || js + 1 >= argc || wcsncmp(argv[js + 1], L"quickjs:", 8) ||

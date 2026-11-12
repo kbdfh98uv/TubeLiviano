@@ -1,0 +1,7 @@
+Dialog resources: GDI 0 -> 0, USER 0 -> 0
+NO EJECUTADO: GDI resource comparison unavailable in this Windows compatibility runtime.
+NO EJECUTADO: USER resource comparison unavailable in this Windows compatibility runtime.
+FAIL 346: edit_equals(dialog,517,bridge_session_url)
+FAIL 353: !lstrcmpW(saved_bridge,bridge_saved_url)
+FAIL 364: edit_equals(app,BRIDGE,bridge_saved_url)
+UI/settings: 122 checks, 3 failures (native controls, no network/playback)

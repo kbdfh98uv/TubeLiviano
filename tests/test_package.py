@@ -10,8 +10,8 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-PORTABLE = DIST / "TubeLiviano_Portable_0.5.1_x86.zip"
-SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.1.zip"
+PORTABLE = DIST / "TubeLiviano_Portable_0.5.2_x86.zip"
+SOURCES = DIST / "TubeLiviano_ThirdParty_Sources_0.5.2.zip"
 PREFIX = "TubeLiviano/"
 
 
@@ -52,16 +52,29 @@ class PortableArchive(unittest.TestCase):
             "engines/modern/yt-dlp.exe", "engines/xp/yt-dlp.exe", "runtimes/qjs.exe",
             "source/src/main.c", "source/src/player.c", "source/src/engine.c",
             "source/src/os_detect.c", "source/src/os_detect.h", "source/src/app.manifest",
+            "source/src/settings.c", "source/src/settings.h", "source/src/ui.c", "source/src/ui.h",
             "source/tests/os_detection_test.c",
+            "source/tests/settings_test.c", "source/tests/player_options_test.c",
+            "source/tests/ui_settings_test.c", "source/tests/batch_test.c",
             "source/Makefile", "source/LICENSE", "source/docs/VALIDACION.md",
             "source/bridge/server.py", "source/bridge/README.md",
             "source/scripts/fetch-deps.py", "source/scripts/package.py",
+            "source/scripts/verify-offline.py", "Probar_offline.cmd",
+            "source/tests/main_regression_test.c", "source/tests/fake_vlc.c",
+            "source/docs/PRUEBAS_XP_ATOM.md",
             "licenses/dependencies.json", "licenses/vlc-COPYING", "licenses/vlc-COPYING.LIB",
             "licenses/quickjs-LICENSE", "licenses/yt-dlp-THIRD_PARTY_LICENSES.txt",
             "licenses/certifi-LICENSE", "licenses/MPL-2.0.txt",
         }
         required.update(f"media/prueba-{height}.mp4" for height in (144, 240, 360))
         self.assertFalse({PREFIX + name for name in required} - self.names)
+        self.assertNotIn(PREFIX + "TubeLiviano.ini", self.names, "User settings entered the portable ZIP")
+        self.assertNotIn(PREFIX + "selftest.json", self.names, "A stale self-test report entered the ZIP")
+        batch = self.read("Probar_offline.cmd")
+        self.assertTrue(batch.isascii())
+        self.assertIn(b"\r\n", batch)
+        self.assertIsNone(re.search(rb"(?<!\r)\n", batch), "XP batch contains non-CRLF lines")
+        self.assertIn(b"findstr", batch)
         for name in self.names:
             with self.subTest(name=name):
                 self.assertTrue(name.startswith(PREFIX))
@@ -102,7 +115,7 @@ class PortableArchive(unittest.TestCase):
     def test_own_source_license_and_readme_links_are_current(self):
         self.assertIn(b"MIT License", self.read("LICENSE"))
         self.assertEqual(self.read("LICENSE"), self.read("source/LICENSE"))
-        for relative in ("src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c",
+        for relative in ("src/main.c", "src/player.c", "src/engine.c", "src/os_detect.c", "src/settings.c", "src/settings.h", "src/ui.c", "src/ui.h",
                          "src/os_detect.h", "src/app.manifest", "docs/VALIDACION.md"):
             with self.subTest(relative=relative):
                 self.assertEqual(self.read("source/" + relative), (ROOT / relative).read_bytes())
@@ -118,7 +131,7 @@ class PortableArchive(unittest.TestCase):
     def test_source_companion_and_external_report(self):
         self.assertTrue(SOURCES.is_file(), "Third-party source companion is missing")
         report = json.loads((DIST / "package-report.json").read_text())
-        self.assertEqual(report["version"], "0.5.1")
+        self.assertEqual(report["version"], "0.5.2")
         self.assertEqual(report["portable"]["file"], PORTABLE.name)
         self.assertEqual(report["upstream_sources"]["file"], SOURCES.name)
         self.assertEqual(report["portable"]["bytes"], PORTABLE.stat().st_size)

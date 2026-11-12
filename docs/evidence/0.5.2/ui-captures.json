@@ -1,0 +1,26 @@
+{
+  "scope": "Same-source x64 native Win32 under Wine10/Xvfb; not XP/x86 execution",
+  "checks": 118,
+  "failed": 0,
+  "real_engine_files_staged_for_readiness": true,
+  "search_or_playback_started": false,
+  "resources": "[NO EJECUTADO] Wine returns zero GDI and USER resource counters",
+  "screenshots": {
+    "home-dark": {
+      "file": "docs/images/0.5.2/home-dark.png",
+      "sha256": "5deb522558e38346caab6ee35b037e340bc9aa02fcf1ffb36d1f4825c48f18fa"
+    },
+    "settings-playback-dark": {
+      "file": "docs/images/0.5.2/settings-playback-dark.png",
+      "sha256": "eebfc873c9e7f49aeed1fe52e6ba84a85e2bf2f6e4dc87456d6b2d70466d111f"
+    },
+    "home-min-large-bridge": {
+      "file": "docs/images/0.5.2/home-min-large-bridge.png",
+      "sha256": "e38f7263a42c8b43d283b5dea6326c7d37039e867cd7457468fbf809e8413652"
+    },
+    "results-min-large-bridge": {
+      "file": "docs/images/0.5.2/results-min-large-bridge.png",
+      "sha256": "3d4b02800042fc37352618c89a4bb46d494d0a32ada5b2aa7a6c0c35055b1676"
+    }
+  }
+}

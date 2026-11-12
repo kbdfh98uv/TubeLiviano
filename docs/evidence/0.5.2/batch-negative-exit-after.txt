@@ -1,0 +1,2 @@
+XIO:  fatal IO error 61 (No data available) on X server ":189"
+      after 122 requests (118 known processed) with 0 events remaining.

@@ -111,7 +111,7 @@ int wmain(int argc,WCHAR **argv) {
      * children. Wait for the final control, not just the visible parent. */
     start=GetTickCount();
     while(!GetDlgItem(app,OFFLINE) && GetTickCount()-start<5000)Sleep(20);
-    GetWindowTextW(app,title,256); CHECK(wcsstr(title,L"0.5.1")!=NULL);
+    GetWindowTextW(app,title,256); CHECK(wcsstr(title,L"0.5.2")!=NULL);
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCOUNT,0,0)==3);
     CHECK(SendMessageW(GetDlgItem(app,QUALITY),CB_GETCURSEL,0,0)==1);
     CHECK(SendMessageW(GetDlgItem(app,MODE),CB_GETCOUNT,0,0)==2);
@@ -151,6 +151,7 @@ int wmain(int argc,WCHAR **argv) {
     _snwprintf(file,MAX_PATH,L"%ls\\engines\\modern",base); RemoveDirectoryW(file);
     _snwprintf(file,MAX_PATH,L"%ls\\engines\\xp",base); RemoveDirectoryW(file);
     _snwprintf(file,MAX_PATH,L"%ls\\engines",base); RemoveDirectoryW(file);
+    _snwprintf(file,MAX_PATH,L"%ls\\TubeLiviano.ini",base); DeleteFileW(file);
     DeleteFileW(exe); RemoveDirectoryW(base);
     printf("GUI: %d checks, %d failures\n",checks,failures);
     return failures ? 1 : 0;

@@ -1,0 +1,44 @@
+{
+  "scope": "A1 portable libVLC dependency search and preservation of caller DLL directory",
+  "baseline_commit": "6b7357c3c37f56bfb31ef67fc16abeda7207c67c",
+  "runtime": "Wine 10 x64 + Xvfb; validation surrogate, not delivered x86 execution",
+  "target_x86_compile": {
+    "command": "/workspace/toolchain/root/usr/bin/i686-w64-mingw32-gcc -D__USE_MINGW_ANSI_STDIO=0 -Os -Wall -Wextra -Werror -c src/player.c -o build/reports/session-0.5.2/player-loader/player-x86.o",
+    "exit_code": 0
+  },
+  "before_wrong_root_core": {
+    "exit_code": 1,
+    "result": "failed before completing assertions: wrong root core resolved as dependency",
+    "evidence": "before-decoy.log",
+    "message": "unimplemented function libvlccore.dll.vlc_mutex_lock"
+  },
+  "before_clean_root": {
+    "exit_code": 1,
+    "checks": 19,
+    "failed": 4,
+    "result": "local playback works, but caller DLL directory is clobbered on failed init, retry and close",
+    "evidence": "before-clean-root.log"
+  },
+  "after_wrong_root_core": {
+    "exit_code": 0,
+    "checks": 19,
+    "failed": 0,
+    "decoded_video": 38,
+    "decoded_audio": 88,
+    "displayed_pictures": 2,
+    "played_audio_buffers": 44,
+    "evidence": "after-decoy.log"
+  },
+  "source_sha256": "337970f0ed6e0f1067c52bd2e3175b80900cec00211cce9d93575316e4920b34",
+  "fixture_sha256": "0f3c2fc5de762d8a9413140f3684781271b4fe3fd0a9244d0e9d1800344bca87",
+  "api_change": "LoadLibraryExW(absolute_libvlc_path,NULL,LOAD_WITH_ALTERED_SEARCH_PATH); no product SetDllDirectory calls",
+  "upstream_loader_evidence": [
+    "VLC 3.0.21 src/modules/bank.c:586 calls module_Load(plugin->abspath)",
+    "VLC 3.0.21 src/win32/plugin.c module_Load uses LoadLibraryExW(wfile,...)"
+  ],
+  "limitations": [
+    "No XP or Atom real execution",
+    "x86 product source compiled, x64 surrogate executed",
+    "Fixture is deliberately incompatible and must never be installed as a VLC dependency"
+  ]
+}

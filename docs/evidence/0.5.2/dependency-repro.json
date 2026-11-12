@@ -1,0 +1,46 @@
+{
+  "command": "CC=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-gcc python3 scripts/fetch-deps.py --offline --sources --stage <stage>",
+  "network": "offline: all artifacts validated against unchanged source pins; no downloads",
+  "builds": [
+    {
+      "stage": "build/integrity-rebuild-1",
+      "bytes": 786944,
+      "sha256": "22539f9cd1253230f98f9629cad610863149acafd72f1d52d162fb57c56a3fd2",
+      "pe_timestamp": 0,
+      "compiler": "i686-w64-mingw32-gcc (GCC) 14-win32",
+      "exit_code": 0
+    },
+    {
+      "stage": "build/portable",
+      "bytes": 786944,
+      "sha256": "22539f9cd1253230f98f9629cad610863149acafd72f1d52d162fb57c56a3fd2",
+      "pe_timestamp": 0,
+      "compiler": "i686-w64-mingw32-gcc (GCC) 14-win32",
+      "exit_code": 0
+    }
+  ],
+  "identical": true,
+  "input_tests": {
+    "command": "python3 -m unittest discover -s tests -p test_build_inputs.py -v",
+    "run": 12,
+    "failed": 0
+  },
+  "published_archives": [
+    {
+      "file": "TubeLiviano_Portable_0.5.1_x86.zip",
+      "unchanged": true
+    },
+    {
+      "file": "TubeLiviano_Portable_0.5_x86.zip",
+      "unchanged": true
+    },
+    {
+      "file": "TubeLiviano_ThirdParty_Sources_0.5.1.zip",
+      "unchanged": true
+    },
+    {
+      "file": "TubeLiviano_ThirdParty_Sources_0.5.zip",
+      "unchanged": true
+    }
+  ]
+}

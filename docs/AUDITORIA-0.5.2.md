@@ -43,8 +43,10 @@ el producto, siguiendo el orden del backlog. Evidencia estática en
   Se evita cambiar esa lógica por especulación.
 - No se repite la investigación previa de IA32/QEMU ni se atribuye a XP una
   ejecución x64/Wine. Tampoco se buscan motores antiguos sin sumas verificables.
-- No se cambia la estética ni se añaden calidades: no mejora los objetivos
-  prioritarios de estabilidad y compatibilidad.
+- La revisión inicial no incluyó cambios visuales. La nueva instrucción del
+  usuario amplió el alcance a una interfaz GDI y configuración nativa; se conserva
+  el presupuesto de recursos y los perfiles 144/240/360p.
 
-Siguiente paso: ejecutar y dejar reproducible la prueba offline sobre la base
-0.5.1, antes de aplicar las correcciones anteriores.
+Los hallazgos A1–A9 se corrigieron con regresiones reproducibles. La base 0.5.1
+y la primera candidata 0.5.2 pasaron reproducción offline; la interfaz y las
+preferencias nuevas requieren la validación final registrada en el checkpoint.

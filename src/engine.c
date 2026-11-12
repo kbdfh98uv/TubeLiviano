@@ -22,11 +22,18 @@ static void message(WCHAR *out, size_t cap, const WCHAR *text)
     out[cap - 1] = 0;
 }
 
+BOOL engine_format_probe_allowed(const Engine *engine)
+{
+    return engine && engine->failure == ENGINE_FAILURE_EXTRACT;
+}
+
 BOOL engine_init(Engine *engine, const WCHAR *base, WCHAR *error, size_t cap)
 {
     OsInfo os;
     size_t n;
+    DWORD attributes;
     if (!engine || !base || !(n = wcslen(base)) || n > MAX_PATH - 40) {
+        if (engine) engine->failure=ENGINE_FAILURE_ARGUMENT;
         message(error, cap, L"Ruta portable demasiado larga (use una carpeta corta).");
         return FALSE;
     }
@@ -34,17 +41,24 @@ BOOL engine_init(Engine *engine, const WCHAR *base, WCHAR *error, size_t cap)
     {
         BOOL detected=os_detect(&os,error,cap);
         engine->os_major=os.major; engine->os_minor=os.minor; engine->os_build=os.build;
-        if (!detected) return FALSE;
+        if (!detected) { engine->failure=ENGINE_FAILURE_LOADER; return FALSE; }
     }
     engine->xp=os.xp;
     wcscpy(engine->base, base);
     while (n > 3 && (engine->base[n - 1] == L'\\' || engine->base[n - 1] == L'/')) engine->base[--n] = 0;
     wcscpy(engine->exe, engine->base);
     wcscat(engine->exe, engine->xp ? L"\\engines\\xp\\yt-dlp.exe" : L"\\engines\\modern\\yt-dlp.exe");
-    if (GetFileAttributesW(engine->exe) == INVALID_FILE_ATTRIBUTES) {
+    attributes=GetFileAttributesW(engine->exe);
+    if (attributes == INVALID_FILE_ATTRIBUTES) {
+        engine->failure=ENGINE_FAILURE_IO;
         message(error, cap, engine->xp
                 ? L"Falta engines\\xp\\yt-dlp.exe. Extraiga el ZIP completo; Windows antiguo usa el motor XP."
                 : L"Falta engines\\modern\\yt-dlp.exe. Extraiga el ZIP completo; Windows 10/11 usa el motor oficial x86.");
+        return FALSE;
+    }
+    if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
+        engine->failure=ENGINE_FAILURE_IO;
+        message(error,cap,L"La ruta de yt-dlp.exe es una carpeta, no un ejecutable. Extraiga el ZIP completo en una carpeta nueva.");
         return FALSE;
     }
     message(error, cap, L"");
@@ -143,7 +157,11 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     size_t i, used = 0;
     BOOL ok = FALSE, started = FALSE;
     *output = NULL;
-    engine->loader_failed=FALSE;
+    engine->failure=ENGINE_FAILURE_IO;
+#ifdef ENGINE_TEST_TIMEOUT_MS
+    /* Fixture builds shorten deadlines independently of the user settings. */
+    timeout=ENGINE_TEST_TIMEOUT_MS;
+#endif
     ZeroMemory(&process, sizeof(process));
     command = (WCHAR *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, COMMAND_CAP * sizeof(WCHAR));
     out = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, OUTPUT_LIMIT + 1);
@@ -157,6 +175,7 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     if (!append_arg(command, &used, engine->exe)) goto too_long;
     for (i = 0; i < argc; ++i) if (!append_arg(command, &used, args[i])) goto too_long;
     if (cancel && WaitForSingleObject(cancel, 0) == WAIT_OBJECT_0) {
+        engine->failure=ENGINE_FAILURE_CANCELLED;
         message(error, cap, L"Cancelado."); goto cleanup;
     }
     ZeroMemory(&sa, sizeof(sa)); sa.nLength = sizeof(sa); sa.bInheritHandle = TRUE;
@@ -190,7 +209,7 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
                         environment, engine->base, &startup, &process)) {
         if (GetLastError() == ERROR_BAD_EXE_FORMAT)
         {
-            engine->loader_failed=TRUE;
+            engine->failure=ENGINE_FAILURE_LOADER;
             message(error, cap, L"Motor incompatible: compruebe que ambos motores sean x86 y el motor XP tenga su framework.");
         }
         else
@@ -208,13 +227,16 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     start = GetTickCount();
     for (;;) {
         if (cancel && WaitForSingleObject(cancel, 0) == WAIT_OBJECT_0) {
+            engine->failure=ENGINE_FAILURE_CANCELLED;
             message(error, cap, L"Cancelado."); goto cleanup;
         }
         if ((DWORD)(GetTickCount() - start) >= timeout) {
+            engine->failure=ENGINE_FAILURE_TIMEOUT;
             message(error, cap, L"El motor excedio el tiempo de espera. Reintente o cambie de calidad; tambien puede usar el puente.");
             goto cleanup;
         }
         if (!drain(readout, out, OUTPUT_LIMIT, &outlen, FALSE)) {
+            engine->failure=ENGINE_FAILURE_OUTPUT;
             message(error, cap, L"La respuesta del motor excede el limite de memoria."); goto cleanup;
         }
         drain(readerr, err, STDERR_LIMIT, &errlen, TRUE);
@@ -223,30 +245,41 @@ static BOOL run(Engine *engine, const WCHAR *const *args, size_t argc,
     /* No descendant may outlive its extractor, even after a successful extraction. */
     TerminateJobObject(job, 0);
     if (!drain(readout, out, OUTPUT_LIMIT, &outlen, FALSE)) {
+        engine->failure=ENGINE_FAILURE_OUTPUT;
         message(error, cap, L"La respuesta del motor excede el limite de memoria."); goto cleanup;
     }
     drain(readerr, err, STDERR_LIMIT, &errlen, TRUE);
-    GetExitCodeProcess(process.hProcess, &exitcode);
+    if (memchr(out,0,outlen)) {
+        engine->failure=ENGINE_FAILURE_OUTPUT;
+        message(error,cap,L"El motor devolvio una respuesta con bytes NUL invalidos. Reintente o actualice el motor correspondiente.");
+        goto cleanup;
+    }
+    if (!GetExitCodeProcess(process.hProcess, &exitcode)) {
+        message(error,cap,L"No se pudo leer el resultado del proceso del motor.");
+        goto cleanup;
+    }
     if (exitcode != 0) {
         WCHAR detail[1024];
         if (exitcode==0xC0000139UL || exitcode==0xC0000135UL || exitcode==0xC000007BUL) {
-            engine->loader_failed=TRUE;
+            engine->failure=ENGINE_FAILURE_LOADER;
             _snwprintf(detail,1024,L"Motor %ls: fallo DLL 0x%08lX en Windows %lu.%lu. Extraiga el ZIP completo en una carpeta nueva, sin mezclar motores; tambien puede usar Puente.",
                        engine->xp ? L"XP" : L"oficial",(unsigned long)exitcode,
                        (unsigned long)engine->os_major,(unsigned long)engine->os_minor);
             message(error,cap,detail);
             goto cleanup;
         }
+        engine->failure=exitcode==1 ? ENGINE_FAILURE_EXTRACT : ENGINE_FAILURE_PROCESS;
         int chars = MultiByteToWideChar(CP_UTF8, 0, err, (int)(errlen > 900 ? 900 : errlen), detail, 1023);
         detail[chars > 0 ? chars : 0] = 0;
         if (chars > 0) message(error, cap, detail);
         else message(error, cap, L"yt-dlp fallo sin detalles. Puede faltar un framework o YouTube pedir verificacion/HTTP 429.");
         goto cleanup;
     }
-    *output = out; out = NULL; ok = TRUE;
+    *output = out; out = NULL; ok = TRUE; engine->failure=ENGINE_FAILURE_NONE;
     message(error, cap, L"");
     goto cleanup;
 too_long:
+    engine->failure=ENGINE_FAILURE_ARGUMENT;
     message(error, cap, L"La consulta o enlace es demasiado largo.");
 cleanup:
     if (started && !ok) { TerminateJobObject(job, 1); TerminateProcess(process.hProcess, 1); WaitForSingleObject(process.hProcess, 1000); }
@@ -498,24 +531,29 @@ BOOL engine_search(Engine *engine, const WCHAR *query, HANDLE cancel,
     WCHAR *search;
     char *output = NULL, *line, *end;
     size_t n;
+    int limit = engine->search_limit == 6 ? 6 : ENGINE_MAX_RESULTS;
+    DWORD timeout = engine->search_timeout_ms == 30000 || engine->search_timeout_ms == 60000
+        ? (DWORD)engine->search_timeout_ms : 120000;
     const WCHAR *args[] = {L"--ignore-config", L"--no-cache-dir", L"--no-warnings",
         L"--encoding", L"utf-8", L"--socket-timeout", L"12", L"--retries", L"0",
         L"--flat-playlist", L"--skip-download", L"--dump-json", L"--", NULL};
     *count = 0;
+    engine->failure=ENGINE_FAILURE_ARGUMENT;
     n = wcslen(query);
     if (!n || n > 2048) { message(error, cap, L"Escriba una busqueda de hasta 2048 caracteres."); return FALSE; }
     search = (WCHAR *)HeapAlloc(GetProcessHeap(), 0, (n + 12) * sizeof(WCHAR));
     if (!search) { message(error, cap, L"Memoria insuficiente."); return FALSE; }
-    wcscpy(search, L"ytsearch12:"); wcscat(search, query);
+    wcscpy(search, limit == 6 ? L"ytsearch6:" : L"ytsearch12:"); wcscat(search, query);
     args[sizeof(args) / sizeof(args[0]) - 1] = search;
-    if (!run(engine, args, sizeof(args) / sizeof(args[0]), cancel, 120000, &output, error, cap)) {
+    if (!run(engine, args, sizeof(args) / sizeof(args[0]), cancel, timeout, &output, error, cap)) {
         HeapFree(GetProcessHeap(), 0, search); return FALSE;
     }
     HeapFree(GetProcessHeap(), 0, search);
     line = output;
-    while (*line && *count < ENGINE_MAX_RESULTS) {
+    while (*line && *count < limit) {
         end = strchr(line, '\n'); if (!end) end = line + strlen(line);
         if (end != line && !parse_result(line, (size_t)(end - line), &results[*count])) {
+            engine->failure=ENGINE_FAILURE_OUTPUT;
             message(error, cap, L"El motor devolvio resultados invalidos. Reintente la busqueda.");
             HeapFree(GetProcessHeap(), 0, output); *count = 0; return FALSE;
         }
@@ -523,7 +561,7 @@ BOOL engine_search(Engine *engine, const WCHAR *query, HANDLE cancel,
         line = *end ? end + 1 : end;
     }
     HeapFree(GetProcessHeap(), 0, output);
-    if (!*count) { message(error, cap, L"Sin resultados. Reintente con otro titulo o pegue un enlace."); return FALSE; }
+    if (!*count) { engine->failure=ENGINE_FAILURE_OUTPUT; message(error, cap, L"Sin resultados. Reintente con otro titulo o pegue un enlace."); return FALSE; }
     return TRUE;
 }
 
@@ -538,7 +576,10 @@ BOOL engine_resolve(Engine *engine, const WCHAR *url, int height, BOOL fallback,
     int count = 0;
     const WCHAR *args[32];
     size_t argc = 0;
+    DWORD timeout = engine->resolve_timeout_ms == 30000 || engine->resolve_timeout_ms == 60000
+        ? (DWORD)engine->resolve_timeout_ms : 90000;
     ZeroMemory(streams, sizeof(*streams));
+    engine->failure=ENGINE_FAILURE_ARGUMENT;
     if (height != 144 && height != 240 && height != 360) {
         message(error, cap, L"Perfil no valido: elija 144p, 240p o 360p."); return FALSE;
     }
@@ -563,7 +604,7 @@ BOOL engine_resolve(Engine *engine, const WCHAR *url, int height, BOOL fallback,
     if (fallback) ARG(L"--check-formats");
     ARG(L"--get-url"); ARG(L"--format"); ARG(selector); ARG(L"--"); ARG(url);
 #undef ARG
-    if (!run(engine, args, argc, cancel, 90000, &output, error, cap)) return FALSE;
+    if (!run(engine, args, argc, cancel, timeout, &output, error, cap)) return FALSE;
     line = output;
     while (*line) {
         end = strchr(line, '\n'); if (!end) end = line + strlen(line);
@@ -572,10 +613,12 @@ BOOL engine_resolve(Engine *engine, const WCHAR *url, int height, BOOL fallback,
         if (n) {
             if (count >= 2 || n >= ENGINE_URL_CAP ||
                 (strncmp(line, "https://", 8) && strncmp(line, "http://", 7))) {
+                engine->failure=ENGINE_FAILURE_OUTPUT;
                 message(error, cap, L"El motor no devolvio uno o dos streams HTTP validos.");
                 HeapFree(GetProcessHeap(), 0, output); ZeroMemory(streams, sizeof(*streams)); return FALSE;
             }
             for (k = 0; k < n; ++k) if ((unsigned char)line[k] <= 32 || line[k] == 127) {
+                engine->failure=ENGINE_FAILURE_OUTPUT;
                 message(error, cap, L"El motor devolvio una URL con caracteres de control invalidos.");
                 HeapFree(GetProcessHeap(), 0, output); ZeroMemory(streams, sizeof(*streams)); return FALSE;
             }
@@ -587,6 +630,7 @@ BOOL engine_resolve(Engine *engine, const WCHAR *url, int height, BOOL fallback,
     }
     HeapFree(GetProcessHeap(), 0, output);
     if (!count) {
+        engine->failure=ENGINE_FAILURE_OUTPUT;
         message(error, cap, L"No hay un stream H.264/AAC dentro de este perfil. Cambie de calidad o use el puente."); return FALSE;
     }
     return TRUE;

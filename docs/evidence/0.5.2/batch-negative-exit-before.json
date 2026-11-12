@@ -1,0 +1,5 @@
+{"fixture":"synthetic approved JSON then explicit process exit","synthetic_media":true,"actual_video_tested":false,"cases":[
+{"case":"zero","fixture_exit_expected":"0x00000000","fixture_exit_observed":"0x00000000","batch_exit":0,"reported_failures":0,"passed":true},
+{"case":"access-violation-status","fixture_exit_expected":"0xC0000005","fixture_exit_observed":"0xC0000005","batch_exit":0,"reported_failures":0,"passed":false},
+{"case":"minus-one-status","fixture_exit_expected":"0xFFFFFFFF","fixture_exit_observed":"0xFFFFFFFF","batch_exit":0,"reported_failures":0,"passed":false}
+],"checks":127,"failures":8,"passed":false}

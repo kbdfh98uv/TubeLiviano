@@ -10,13 +10,32 @@
 #define ENGINE_MAX_RESULTS 12
 #define ENGINE_URL_CAP 16384
 
+typedef enum {
+    ENGINE_FAILURE_NONE = 0,
+    ENGINE_FAILURE_EXTRACT, /* Normal extractor exit 1: format probing may help. */
+    ENGINE_FAILURE_LOADER,
+    ENGINE_FAILURE_TIMEOUT,
+    ENGINE_FAILURE_OUTPUT,
+    ENGINE_FAILURE_IO,
+    ENGINE_FAILURE_CANCELLED,
+    ENGINE_FAILURE_ARGUMENT,
+    ENGINE_FAILURE_PROCESS
+} EngineFailure;
+
 typedef struct {
     WCHAR exe[MAX_PATH];
     WCHAR base[MAX_PATH];
     BOOL xp;
     DWORD os_major, os_minor, os_build;
-    BOOL loader_failed; /* Do not retry format probing after a DLL-loader failure. */
+    EngineFailure failure;
+    /* Per-request settings; zero preserves the portable factory defaults. */
+    int search_limit;       /* 6 or 12 results (default 12). */
+    int search_timeout_ms;  /* 30000, 60000 or 120000 (default 120000). */
+    int resolve_timeout_ms; /* 30000, 60000 or 90000 (default 90000). */
 } Engine;
+
+/* Only a normal extractor failure can benefit from retrying format probing. */
+BOOL engine_format_probe_allowed(const Engine *engine);
 
 typedef struct {
     WCHAR title[512];

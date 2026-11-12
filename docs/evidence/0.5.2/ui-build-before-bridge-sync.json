@@ -1,0 +1,110 @@
+{
+  "version": "0.5.2",
+  "hardware_execution": "[NO EJECUTADO] No physical XP/Atom and no PE32 runtime execution on this host. These are cross-build/static checks only.",
+  "source_commit_base": "1d2a15db34a0cccb65fb9745d0ee65f22714327d",
+  "source_sha256": {
+    "Makefile": "b98c6ef0da7439fc17544c4e0f573ff05a0d23a6b29ebf7f2bb6ee4d8af4f2cf",
+    "src/app.manifest": "5bedb573d78b58cf6ed7e8005c3fe6fa8b85db40d796d6805349dca2fa7eeb8d",
+    "src/app.rc": "50c830537a4c19ddf2d00bb240c90fd44fdff1b3b395c21a36b38f6f60fb8466",
+    "src/engine.c": "a0fa622cb110c225a7fb402202c79eeeaa9d5232ad83b6b1353c7a2402a40900",
+    "src/engine.h": "d20eebedf7e7ee141ebb268f907b3d93ecb52e44bdb4223afc52b97f5b9ecc41",
+    "src/main.c": "ad424c16b5c4a8ff56d3735432843e74604bd91b633c63b40f12369f6442c41a",
+    "src/os_detect.c": "76d1213833732cb54ce5b7bbb750fd1d05eaf46a3154e12bddd7e88d5aab24d6",
+    "src/os_detect.h": "a1d9982b055f9be802dd809b4cb284812b5f358f8435e99403e1778d302ad960",
+    "src/player.c": "ed2d23c67b5ede0c68ef9ccb25f5fa7351eceb105d8a936cae87bf494dd8fd3a",
+    "src/player.h": "fe8ba7c6f7893d84c3a6373a459900077001b74c43e847fecfead59b202152e4",
+    "src/settings.c": "62162bb176c01b13559faa07c3bfc71abca6308554e7869b2086d6d76009b2ff",
+    "src/settings.h": "ded09a2a9e6492ae6e293dc99d26aae428e9c8e2d61e5e1f36e95d202bea608c",
+    "src/ui.c": "95281efc59cc62e9844d61e3fe0c23a3aac74e19a69353330213deeabb65cc60",
+    "src/ui.h": "a6b65be857dd6d71ec273035795887bf1078103424fdf98ec5d64083f5c3ab29"
+  },
+  "sources_unchanged_during_build": true,
+  "builds": [
+    {
+      "label": "working-tree",
+      "directory": ".",
+      "command": [
+        "make",
+        "-B",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "exit_code": 0,
+      "log": "build/reports/session-0.5.2/working-tree-release-build.log",
+      "clean_outputs_before_build": false,
+      "bytes": 84992,
+      "sha256": "65d15c99f168bef5ea032cd17cbdbc5e086c1d7b2a038c7c4c9ceab14b638d29"
+    },
+    {
+      "label": "clean-1",
+      "directory": "build/release-clean-1-oj_15q3w",
+      "command": [
+        "make",
+        "-B",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "exit_code": 0,
+      "log": "build/reports/session-0.5.2/clean-1-release-build.log",
+      "clean_outputs_before_build": true,
+      "bytes": 84992,
+      "sha256": "65d15c99f168bef5ea032cd17cbdbc5e086c1d7b2a038c7c4c9ceab14b638d29"
+    },
+    {
+      "label": "clean-2",
+      "directory": "build/release-clean-2-rzzwc89k",
+      "command": [
+        "make",
+        "-B",
+        "PREFIX=/workspace/toolchain/root/usr/bin/i686-w64-mingw32-"
+      ],
+      "exit_code": 0,
+      "log": "build/reports/session-0.5.2/clean-2-release-build.log",
+      "clean_outputs_before_build": true,
+      "bytes": 84992,
+      "sha256": "65d15c99f168bef5ea032cd17cbdbc5e086c1d7b2a038c7c4c9ceab14b638d29"
+    }
+  ],
+  "identical": true,
+  "binary": {
+    "path": "build/portable/TubeLiviano.exe",
+    "bytes": 84992,
+    "sha256": "65d15c99f168bef5ea032cd17cbdbc5e086c1d7b2a038c7c4c9ceab14b638d29",
+    "machine": "0x14c",
+    "optional_magic": "0x10b",
+    "pe_timestamp": 0,
+    "os_version": [
+      5,
+      1
+    ],
+    "subsystem_version": [
+      5,
+      1
+    ],
+    "subsystem": 2,
+    "clr_directory": [
+      0,
+      0
+    ],
+    "import_dlls": [
+      "GDI32.dll",
+      "KERNEL32.dll",
+      "msvcrt.dll",
+      "SHELL32.dll",
+      "USER32.dll"
+    ],
+    "forbidden_static_api_checks": [
+      "GetTickCount64",
+      "GetSystemCpuSetInformation",
+      "GetSystemTimePreciseAsFileTime",
+      "InitializeCriticalSectionEx",
+      "InitOnceExecuteOnce",
+      "GetFinalPathNameByHandleW",
+      "SetDefaultDllDirectories",
+      "AddDllDirectory",
+      "SetThreadErrorMode",
+      "BCryptGenRandom"
+    ],
+    "forbidden_static_apis_found": []
+  },
+  "compiler": "i686-w64-mingw32-gcc (GCC) 14-win32",
+  "result": "passed"
+}

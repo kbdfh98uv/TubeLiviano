@@ -46,8 +46,8 @@ int wmain(void)
     int count, i;
     DWORD start;
     CancelTask task;
-    const WCHAR *bad[] = {L"malformed", L"missingid", L"invalidid", L"empty", L"error", L"overflow"};
-    const WCHAR *bad_url[] = {L"https://fixture/bad", L"https://fixture/control", L"https://fixture/three", L"https://fixture/empty"};
+    const WCHAR *bad[] = {L"malformed", L"missingid", L"invalidid", L"empty", L"error", L"overflow", L"nul"};
+    const WCHAR *bad_url[] = {L"https://fixture/bad", L"https://fixture/control", L"https://fixture/three", L"https://fixture/empty", L"https://fixture/nul"};
     GetModuleFileNameW(NULL, exe, MAX_PATH); slash = wcsrchr(exe, L'\\');
     if (!slash) return 2;
     wcscpy(slash + 1, L"engine_fixture.exe");
@@ -63,13 +63,30 @@ int wmain(void)
     wcscat(file, L"\\yt-dlp.exe"); CHECK(CopyFileW(exe, file, TRUE));
     swprintf(file, MAX_PATH, L"%ls\\engines\\modern", folder); CHECK(CreateDirectoryW(file, NULL));
     wcscat(file, L"\\yt-dlp.exe"); CHECK(CopyFileW(exe, file, TRUE));
+    selected.search_limit=6; selected.search_timeout_ms=30000; selected.resolve_timeout_ms=30000;
     CHECK(engine_init(&selected, folder, error, 2048));
+    CHECK(!selected.search_limit && !selected.search_timeout_ms && !selected.resolve_timeout_ms);
     CHECK(wcsstr(selected.exe, selected.xp ? L"\\xp\\" : L"\\modern\\") != NULL);
     wprintf(L"Selected engine: %ls\n", selected.exe);
     wcscpy(file, selected.exe);
     CHECK(DeleteFileW(file));
     CHECK(!engine_init(&selected, folder, error, 2048)); /* Never substitute the other OS engine. */
+    CHECK(selected.failure==ENGINE_FAILURE_IO && !engine_format_probe_allowed(&selected));
+    CHECK(CreateDirectoryW(file,NULL));
+    CHECK(!engine_init(&selected,folder,error,2048));
+    CHECK(selected.failure==ENGINE_FAILURE_IO && wcsstr(error,L"carpeta") && !engine_format_probe_allowed(&selected));
+    CHECK(RemoveDirectoryW(file));
     CHECK(CopyFileW(exe, file, TRUE));
+
+    CHECK(engine_search(&engine,L"limit",event,result,&count,error,2048));
+    CHECK(count==12);
+    engine.search_limit=6;
+    CHECK(engine_search(&engine,L"six",event,result,&count,error,2048));
+    CHECK(count==6); /* The fixture emits 12 to verify the response is also bounded. */
+    engine.search_limit=5;
+    CHECK(engine_search(&engine,L"limit",event,result,&count,error,2048));
+    CHECK(count==12); /* Invalid input falls back to the factory setting. */
+    engine.search_limit=0;
 
     SetEnvironmentVariableW(L"_MEIPASS2",L"C:\\stale\\_MEI");
     SetEnvironmentVariableW(L"_PYI_ARCHIVE_FILE",L"C:\\stale\\yt-dlp.exe");
@@ -83,11 +100,11 @@ int wmain(void)
     SetEnvironmentVariableW(L"__COMPAT_LAYER",NULL);
     SetEnvironmentVariableW(L"TL_KEEP_ME",NULL);
     CHECK(!engine_search(&engine,L"loaderfail",event,result,&count,error,2048));
-    CHECK(engine.loader_failed && wcsstr(error,L"DLL"));
+    CHECK(engine.failure==ENGINE_FAILURE_LOADER && wcsstr(error,L"DLL") && !engine_format_probe_allowed(&engine));
 
     CHECK(engine_search(&engine, L"comillas \" barra \\\\ fin\\", event, result, &count, error, 2048));
     CHECK(count == 2);
-    CHECK(!engine.loader_failed);
+    CHECK(engine.failure==ENGINE_FAILURE_NONE && !engine_format_probe_allowed(&engine));
     CHECK(!wcscmp(result[0].title, L"caf\u00e9 \xd83d\xde80 \"ok\""));
     CHECK(!wcscmp(result[0].channel, L"Espa\u00f1ol"));
     CHECK(result[0].duration == 96);
@@ -97,7 +114,14 @@ int wmain(void)
     for (i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); ++i) {
         CHECK(!engine_search(&engine, bad[i], event, result, &count, error, 2048));
         CHECK(count == 0 && error[0]);
+        if (engine.failure!=(!wcscmp(bad[i],L"error") ? ENGINE_FAILURE_EXTRACT : ENGINE_FAILURE_OUTPUT))
+            wprintf(L"Failure classification for %ls: %d; %ls\n",bad[i],engine.failure,error);
+        CHECK(engine.failure==(!wcscmp(bad[i],L"error") ? ENGINE_FAILURE_EXTRACT : ENGINE_FAILURE_OUTPUT));
+        CHECK(engine_format_probe_allowed(&engine)==(!wcscmp(bad[i],L"error")));
     }
+    CHECK(engine_search(&engine,L"large",event,result,&count,error,2048));
+    CHECK(count==1 && !wcscmp(result[0].title,L"Large") && result[0].duration==96);
+    CHECK(engine.failure==ENGINE_FAILURE_NONE);
     for (i = 0; i < 3; ++i) {
         int height = i == 0 ? 144 : i == 1 ? 240 : 360;
         CHECK(engine_resolve(&engine, L"https://fixture/muxed", height, FALSE, event, &streams, error, 2048));
@@ -106,14 +130,54 @@ int wmain(void)
     CHECK(engine_resolve(&engine, L"https://fixture/split", 240, FALSE, event, &streams, error, 2048));
     CHECK(!strcmp(streams.audio, "https://fixture/audio?x=3&y=4"));
     CHECK(!engine_resolve(&engine, L"https://fixture/fallback", 240, FALSE, event, &streams, error, 2048));
+    CHECK(engine.failure==ENGINE_FAILURE_EXTRACT && engine_format_probe_allowed(&engine));
     CHECK(engine_resolve(&engine, L"https://fixture/fallback", 240, TRUE, event, &streams, error, 2048));
+    CHECK(engine.failure==ENGINE_FAILURE_NONE && !engine_format_probe_allowed(&engine));
     CHECK(!engine_resolve(&engine, L"https://fixture/muxed", 720, FALSE, event, &streams, error, 2048));
+    CHECK(engine.failure==ENGINE_FAILURE_ARGUMENT && !engine_format_probe_allowed(&engine));
     CHECK(!engine_resolve(&engine, L"file:///bad", 240, FALSE, event, &streams, error, 2048));
-    for (i = 0; i < (int)(sizeof(bad_url) / sizeof(bad_url[0])); ++i)
+    for (i = 0; i < (int)(sizeof(bad_url) / sizeof(bad_url[0])); ++i) {
         CHECK(!engine_resolve(&engine, bad_url[i], 240, FALSE, event, &streams, error, 2048));
+        CHECK(engine.failure==ENGINE_FAILURE_OUTPUT && !engine_format_probe_allowed(&engine));
+    }
+    CHECK(!engine_resolve(&engine,L"https://fixture/nativecrash",240,FALSE,event,&streams,error,2048));
+    CHECK(engine.failure==ENGINE_FAILURE_PROCESS && !engine_format_probe_allowed(&engine));
+    CHECK(!engine_resolve(&engine,L"https://fixture/usageerror",240,FALSE,event,&streams,error,2048));
+    CHECK(engine.failure==ENGINE_FAILURE_PROCESS && !engine_format_probe_allowed(&engine));
+    CHECK(!engine_resolve(&engine,L"https://fixture/loaderfail",240,FALSE,event,&streams,error,2048));
+    CHECK(engine.failure==ENGINE_FAILURE_LOADER && !engine_format_probe_allowed(&engine));
+    {
+        Engine absent=engine;
+        wcscat(absent.exe,L".missing");
+        CHECK(!engine_resolve(&absent,L"https://fixture/muxed",240,FALSE,event,&streams,error,2048));
+        CHECK(absent.failure==ENGINE_FAILURE_IO && !engine_format_probe_allowed(&absent));
+    }
+#ifdef ENGINE_TEST_TIMEOUT_MS
+    engine.resolve_timeout_ms=90000;
+    start=GetTickCount();
+    CHECK(!engine_resolve(&engine,L"https://fixture/hang",240,FALSE,event,&streams,error,2048));
+    CHECK(engine.failure==ENGINE_FAILURE_TIMEOUT && !engine_format_probe_allowed(&engine));
+    CHECK(GetTickCount()-start<ENGINE_TEST_TIMEOUT_MS+4000);
+    engine.resolve_timeout_ms=0;
+#else
+    /* Run without the fixture override to exercise the actual 30-second settings. */
+    engine.search_timeout_ms=30000;
+    start=GetTickCount();
+    CHECK(!engine_search(&engine,L"configuredtimeout",event,result,&count,error,2048));
+    CHECK(engine.failure==ENGINE_FAILURE_TIMEOUT);
+    CHECK(GetTickCount()-start>=29000 && GetTickCount()-start<36000);
+    engine.search_timeout_ms=0;
+    engine.resolve_timeout_ms=30000;
+    start=GetTickCount();
+    CHECK(!engine_resolve(&engine,L"https://fixture/configuredtimeout",240,FALSE,event,&streams,error,2048));
+    CHECK(engine.failure==ENGINE_FAILURE_TIMEOUT);
+    CHECK(GetTickCount()-start>=29000 && GetTickCount()-start<36000);
+    engine.resolve_timeout_ms=0;
+#endif
     SetEvent(event);
     start = GetTickCount();
     CHECK(!engine_search(&engine, L"hang", event, result, &count, error, 2048));
+    CHECK(engine.failure==ENGINE_FAILURE_CANCELLED && !engine_format_probe_allowed(&engine));
     CHECK((DWORD)(GetTickCount() - start) < 2000);
     ResetEvent(event);
 
@@ -121,6 +185,7 @@ int wmain(void)
     thread = CreateThread(NULL, 0, cancel_child, &task, 0, NULL); CHECK(thread != NULL);
     start = GetTickCount();
     CHECK(!engine_search(&engine, L"spawnchild", event, result, &count, error, 2048));
+    CHECK(engine.failure==ENGINE_FAILURE_CANCELLED && !engine_format_probe_allowed(&engine));
     CHECK(WaitForSingleObject(thread, 6000) == WAIT_OBJECT_0);
     CHECK((DWORD)(GetTickCount() - start) < 7000);
     CHECK(task.child != NULL);

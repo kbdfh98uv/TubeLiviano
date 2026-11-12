@@ -1,0 +1,7 @@
+{"fixture":"synthetic approved JSON then explicit process exit","synthetic_media":true,"actual_video_tested":false,"cases":[
+{"case":"zero","fixture_exit_expected":"0x00000000","fixture_exit_observed":"0x00000000","batch_exit":0,"reported_failures":0,"passed":true},
+{"case":"access-violation-status","fixture_exit_expected":"0xC0000005","fixture_exit_observed":"0xC0000005","batch_exit":1,"reported_failures":3,"passed":true},
+{"case":"minus-one-status","fixture_exit_expected":"0xFFFFFFFF","fixture_exit_observed":"0xFFFFFFFF","batch_exit":1,"reported_failures":3,"passed":true}
+],"checks":127,"failures":0,"passed":true}
+XIO:  fatal IO error 2 (No such file or directory) on X server ":90"
+      after 152 requests (118 known processed) with 0 events remaining.

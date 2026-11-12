@@ -4,3 +4,6 @@ dist/
 __pycache__/
 *.pyc
 *.log
+
+# Preferencias portables de cada usuario
+TubeLiviano.ini

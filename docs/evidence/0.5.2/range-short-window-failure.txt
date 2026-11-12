@@ -1,0 +1,18 @@
+test_local_profiles (__main__.Playback.test_local_profiles) ... ok
+test_range_before_full_file (__main__.Playback.test_range_before_full_file) ... FAIL
+
+======================================================================
+FAIL: test_range_before_full_file (__main__.Playback.test_range_before_full_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/TubeLiviano/tests/playback.py", line 120, in test_range_before_full_file
+    data = self.launch(f"http://127.0.0.1:{server.server_port}/clip.mp4", "range-96s", 4500)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/TubeLiviano/tests/playback.py", line 100, in launch
+    self.assertEqual(result.returncode, 0, data)
+AssertionError: 1 != 0 : {'version': '0.5.2', 'frontend_bits': 64, 'windows_major': 10, 'windows_minor': 0, 'selected_engine': 'unavailable', 'complete': True, 'passed': False, 'state': 3, 'elapsed_ms': 4569, 'decoded_video': 0, 'decoded_audio': 0, 'displayed_pictures': 0, 'played_audio_buffers': 0, 'read_bytes': 73728, 'first_frame_read_bytes': 0, 'validation_architecture': 'x64', 'surrogate': True, 'binary_sha256': 'bbb04e0a186d34c791ea927315bf173e4ef86e26ba9490a836c24324454363aa'}
+
+----------------------------------------------------------------------
+Ran 2 tests in 26.286s
+
+FAILED (failures=1)

@@ -1,0 +1,30 @@
+{
+  "checks": [
+    {
+      "case": "real-vlc",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "log": "real-vlc.log",
+      "architecture": "x64",
+      "surrogate": true,
+      "synthetic_media": false
+    },
+    {
+      "case": "forced-late-error",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "passed": true,
+      "log": "forced-late-error.log",
+      "architecture": "x64",
+      "surrogate": true,
+      "synthetic_media": true,
+      "reported_failures": 3
+    }
+  ],
+  "passed": true,
+  "limitations": [
+    "cmd.exe/Wine10 x64; XP real NOT EXECUTED"
+  ],
+  "batch_counter_fix": "Redirection precedes numeric expansion, so cmd does not interpret the count as a file descriptor."
+}

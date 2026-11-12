@@ -1,179 +1,165 @@
-# Validación de TubeLiviano 0.5.1
+# Validación de TubeLiviano 0.5.2
 
-El entregable es un **frontend Win32 x86**, compilado desde Linux con MinGW y CRT
-MSVCRT, dirigido a Windows XP SP3 y Windows 10/11. Se verificaron la arquitectura
-PE32, el subsistema 5.01 y la ausencia de runtime .NET. Eso **no equivale a haberlo
-ejecutado en XP**, ni certifica el paquete completo para ese sistema.
+El entregable es Win32 x86/MSVCRT, con OS y subsistema PE 5.01. El EXE y todos
+los DLL/EXE del ZIP se inspeccionan como PE32/i386; libVLC se carga dinámicamente.
+**[NO EJECUTADO] Windows XP, Windows 10/11 y Atom físicos.** Este entorno no puede
+ejecutar IA32. Las comprobaciones de comportamiento se hacen con una variante
+**x64 del mismo código**, Wine 10 y DLLs x64 equivalentes de LibVLC 3.0.21. Esa
+variante no entra en el ZIP x86 ni certifica el equipo de destino.
 
-## Cambios y regresiones de 0.5.1
+## Evidencia conservada
 
-Se corrigió la regla que asignaba el motor XP a cualquier versión informada como
-anterior a Windows 10. Ahora se comprueban una función disponible desde Windows
-10 y la versión del `kernel32.dll` cargado. El motor XP requiere evidencia de un
-kernel nativo 5.1/5.2, sin señales contradictorias de un sistema posterior; una
-versión enmascarada por compatibilidad no basta. Vista/7/8 reciben un error claro
-y pueden usar el puente pegando un enlace.
+- `evidence/0.5.2/clean-build.json`: dos builds limpios de la base 0.5.1, idénticos
+  al EXE publicado de 54.784 bytes.
+- `evidence/0.5.2/compatibility-audit.json`: manifiesto, imports y motores fijados;
+  [auditoría A1–A9](AUDITORIA-0.5.2.md) y regresiones antes/después.
+- `evidence/0.5.2/dependency-repro.json`: QuickJS reconstruido dos veces, timestamp
+  cero y SHA-256 `22539f9cd1253230f98f9629cad610863149acafd72f1d52d162fb57c56a3fd2`.
+- `evidence/0.5.2/release-build.json`: build final limpio, entradas y comandos exactos.
+- `evidence/0.5.2/release-validation.json`: reproducción y controles de la candidata
+  final; identifica arquitectura, hash del EXE de prueba, comandos y resultados.
+- `evidence/0.5.2/ui-captures.json`: capturas de la interfaz nativa en Wine x64,
+  con motores reales presentes pero sin iniciar búsqueda ni reproducción.
 
-También se añadió manifiesto de compatibilidad con Windows moderno, se eliminan
-del entorno del hijo las variables `_MEIPASS2`, `_PYI_*` y `__COMPAT_LAYER`, y se
-conservan las demás variables, incluido proxy/certificados. Un fallo del cargador
-DLL se informa dentro de la aplicación y no dispara probing de formatos ni deja
-una cadena de avisos modales del cargador.
+Los informes baseline y `offline-final.json` corresponden al hito de estabilidad
+**anterior al rediseño**. No se presentan como ejecución de la UI final. Los
+informes de medios reales se distinguen de los tests con extractor/VLC simulados.
 
-- Política de selección: **21 casos nativos con ASan/UBSan aprobados**, incluidos
-  XP, Windows moderno, versiones enmascaradas y evidencia insuficiente.
-- Detección real en variante x64/Wine: **23 comprobaciones aprobadas**; detectó
-  `10.0.19043` y eligió el motor moderno.
-- Subprocesos Win32 en variante x64/Wine: **62 comprobaciones aprobadas**,
-  incluidas limpieza del entorno heredado, conservación de variables ajenas al
-  framework, estado de fallo DLL y cancelación de descendientes.
-- Parser de producción: **38 comprobaciones nativas con ASan/UBSan aprobadas**.
-- Reproducción de 0.5.1 con el perfil reducido x64: **144p, 240p, 360p y HTTP Range
-  aprobados**, con contadores de video, audio y cuadros mostrados positivos.
-- Interfaz Win32 de 0.5.1 en variante x64/Wine: **32 comprobaciones aprobadas**,
-  incluida la versión exacta en el título, resultados, perfiles, reintento,
-  conservación del enlace y cancelación/cierre con extracción pendiente.
-- El frontend x86 de 0.5.1 compiló con `-Werror`. Ninguna de estas ejecuciones x64
-  sustituye la prueba del binario x86 en el Windows del usuario.
+## Qué comprueban las pruebas
 
-Las capturas reportadas muestran dependencias del framework XP (`KERNELxp.dll` y
-`ntext.dll`). Los motores conservan sus versiones upstream verificadas; **estos
-cambios no prueban que el framework incluido funcione en XP real ni que resuelvan
-un defecto interno de ese framework**. La versión/compilación exacta del equipo
-reportado y la prueba real siguen pendientes. Extraer la 0.5.1 en una carpeta
-nueva permite comprobar el nuevo número de versión y la selección mostrada.
+El runner `scripts/verify-offline.py` construye desde las fuentes actuales una
+etapa nueva y comprueba hashes upstream, arquitectura real y perfiles VLC antes
+de arrancar. Borra informes viejos y exige salida cero, `complete`, `passed` y
+contadores positivos de video decodificado, audio decodificado, cuadros mostrados
+y búferes de audio. Un fallo tardío o un informe no escribible hacen fallar el
+self-test. Las regresiones cubren esos casos con un VLC simulado explícito.
 
-Los datos de subprocesos, UI y reproducción detallados a continuación corresponden
-a la regresión de **0.5.1 en la variante temporal x64**. Las pruebas de puente y
-QuickJS conservan su alcance indicado; ninguna certifica Windows XP real.
+Los clips 144/240/360p duran ocho segundos: H.264 constrained baseline, YUV420p,
+24 fps, AAC mono 44,1 kHz y MP4 con índice antes de los datos. FFprobe verifica
+sus perfiles y la reproducción usa plugins del mismo conjunto reducido que el
+portable. Audio dummy comprueba decodificación y entrega; **[NO EJECUTADO] sonido
+audible físico**. El botón offline normal usa el dispositivo de Windows.
 
-## Qué se ejecutó y dónde
+El origen Range sirve un MP4 de 96 s y 4.428.555 bytes a 64 KiB/s. Se exige una
+petición Range, primer cuadro con lectura parcial y que el origen no entregue el
+archivo entero. Se conserva el contador leído al primer sondeo con cuadros; no
+se afirma que coincida byte a byte con lo enviado por el socket. No es YouTube.
 
-El host de build no permite ejecutar IA32. Un programa ELF de 32 bits fue rechazado;
-Wine 10 WoW64 falló al iniciar PE32, Wine 11 devolvió `c00000e5` y las alternativas
-QEMU investigadas tampoco permitieron ejecutar el programa x86. No se cuentan esas
-pruebas como aprobadas.
+La ventana de observación de este test se amplió de 4,5 a 12 s: se conservó una
+ejecución fallida con solo 73.728 bytes recibidos y cero cuadros, cuando el plazo
+incluía inicialización fría de VLC/plugins. No se quitaron las condiciones de
+imagen/audio ni de descarga parcial. Véase `range-short-window-failure.json`.
+El plazo permite arranque frío y no certifica una latencia máxima de 12 s.
 
-Para validar el comportamiento sin ocultar este límite se compiló una variante
-**temporal x64 del mismo código C**, con las mismas opciones de aplicación, y se
-ejecutó bajo Wine 10. Se usaron los DLLs x64 equivalentes de la misma distribución
-oficial LibVLC 3.0.21, incluidos los mismos nombres de plugins del perfil reducido.
-**Esa variante x64 no se incluye en el ZIP x86.** Las diferencias de arquitectura,
-Windows, controladores y hardware siguen requiriendo prueba en el equipo destino.
+Los controles Win32 prueban selección del OS, subprocesos y descendientes,
+Unicode/NUL/JSON, recuperación, rutas largas, cierre asíncrono y DLL privada de
+VLC. Configuración prueba todos los campos, límites, INI Unicode, guardado atómico,
+solo lectura y tokens solo de sesión. La UI prueba navegación, teclado, cambio
+de tema/letra, cancelar/guardar, reapertura y geometría de cliente 660×450 con
+texto grande y puente. No descarga miniaturas ni usa animaciones.
 
-Los resultados actuales proceden de `build/reports/` en el workspace de build.
-El script elimina cada informe anterior antes de ejecutar la prueba y exige
-terminación exitosa y contadores positivos de imagen y audio. No se considera
-suficiente que VLC abra un puerto, que exista un proceso o que el reproductor diga
-«reproduciendo».
+**[NO EJECUTADO] Comparación de recursos GDI/USER:** Wine devuelve cero en
+`GetGuiResources`; el test lo declara y no transforma esos ceros en prueba de
+que no hay fugas. El checklist físico permite registrar memoria/handles reales.
 
-| Comprobación | Resultado | Alcance |
-| --- | --- | --- |
-| Compilación del frontend x86 | Aprobada | PE32/i386, subsistema Windows 5.01, DLLs del sistema y libVLC cargado dinámicamente. |
-| Selección de motores y subprocesos | 62 comprobaciones aprobadas | Variante x64/Wine de 0.5.1: JSON, Unicode, argumentos, perfiles, fallback, motor ausente, limpieza del entorno, fallos DLL y terminación del hijo y nieto al cancelar. |
-| Parser y escapado | 38 comprobaciones aprobadas | Código de producción extraído por el harness nativo, con ASan y UBSan. No sustituye una ejecución de los subprocesos en XP. |
-| Interfaz real | 32 comprobaciones aprobadas | Variante 0.5.1 x64/Wine con extractor simulado: resultados Unicode, dos líneas, perfil predeterminado, enlace conservado al cambiar calidad/reintentar y cierre/cancelación de procesos descendientes. |
-| Puente | 6 pruebas aprobadas | FFmpeg real, tres perfiles, salida temprana desde fuente de 96 s, exclusión mutua, desconexión, parámetros y runtime JS. |
-| QuickJS-NG adaptado | Aprobado en variante x64 | JSON, Unicode, Uint8Array, BigInt, Promises y script UTF-8; el binario x86 recibió auditoría estática de imports, sin ejecución. |
-| YouTube en vivo | No ejecutado | El proxy del entorno rechazó `CONNECT` a `www.youtube.com` con HTTP 403. No se obtuvo un video real ni un desafío EJS real. |
-| XP SP3 / Windows 10 y 11 reales | Pendiente | No hubo máquinas Windows reales disponibles para esta validación. |
-| Atom N270, 512 MB | Pendiente | Faltan mediciones de RAM, primer cuadro, cuadros perdidos, fluidez y sonido audible. |
+## Resultado final de la candidata
 
-## Clips offline: imagen y audio
+EXE entregable x86: **84,992 bytes**, SHA-256
+`e02736d7087d3c8f228b1cf930b3214f5ee6fc8dfd3089e67858eeff2a8ec440`. Tres builds (raíz y dos carpetas nuevas sin outputs)
+resultaron idénticos. Solo importa GDI32, KERNEL32, MSVCRT, SHELL32 y USER32;
+PE32/i386, OS/subsistema 5.01, sin CLR y sin timestamps del linker.
 
-Se generaron clips de ocho segundos con patrón animado y tono de 440 Hz: H.264
-baseline, YUV420p, 24 fps, AAC mono, MP4 con `faststart`. Se reprodujeron con el
-perfil reducido de plugins de VLC de la variante temporal x64 de 0.5.1.
+El runner final aprobó **953 comprobaciones** con la variante x64/Wine:
 
-| Perfil | Video decodificado | Audio decodificado | Cuadros mostrados | Búferes de audio reproducidos | Resultado |
-| --- | ---: | ---: | ---: | ---: | --- |
-| 144p | 206 | 388 | 80 | 194 | Aprobado |
-| 240p | 230 | 432 | 96 | 216 | Aprobado |
-| 360p | 230 | 432 | 97 | 216 | Aprobado |
+| Suite | Comprobaciones / fallos |
+| --- | ---: |
+| os | 23 / 0 |
+| engine | 115 / 0 |
+| gui | 32 / 0 |
+| main | 35 / 0 |
+| loader | 19 / 0 |
+| settings | 180 / 0 |
+| player-options | 302 / 0 |
+| ui-settings | 120 / 0 |
+| batch | 127 / 0 |
 
-Los informes se tomaron aproximadamente a los 5,5 s; no representan el total de
-ocho segundos. El modo automatizado usa un dispositivo de audio dummy: comprueba
-decodificación y entrega de audio, **no escucha física de los parlantes**. El botón
-«Probar imagen y audio» normal usa la salida de audio de Windows. Los contadores
-de Wine tampoco sirven para predecir la tasa de cuadros en un Atom.
+Los tests `main`, `player-options` y `batch` usan medios/contadores simulados
+explícitos. El loader reproduce medios reales con una DLL core señuelo en raíz.
+El motor usa un extractor fixture para condiciones reproducibles, sin YouTube.
+El batch comprueba salidas 0, `0xC0000005` y `0xFFFFFFFF`, aun con JSON aprobado.
+La dirección del puente se conserva sin exigir pérdida de foco y el token no
+vuelve al reiniciar. Las regresiones previas fallaban en esos casos.
 
-## Streaming HTTP Range: fuente de 96 segundos
+Clips reales reproducidos (audio dummy):
 
-`tests/playback.py` sirvió un MP4 local de **4.428.555 bytes**, generado a 240p y
-24 fps, desde un origen HTTP con Range y límite de 64 KiB/s. VLC realizó la petición
-`Range: bytes=0-`; el servidor respondió con contenido parcial. La aplicación abrió
-esa URL directamente, sin descargarla a un archivo temporal.
+| Perfil | Video decodificado | Audio decodificado | Cuadros mostrados | Búferes de audio |
+| --- | ---: | ---: | ---: | ---: |
+| 144p | 206 | 370 | 86 | 185 |
+| 240p | 218 | 389 | 90 | 195 |
+| 360p | 230 | 432 | 95 | 216 |
 
-En la ejecución del perfil reducido de la 0.5.1:
+Range real: petición `bytes=0-`; primer cuadro con **157,696 / 4,428,555
+bytes leídos (3.56%)**, antes de recibir el archivo completo.
+El origen envió 757,760 bytes durante la observación. El porcentaje es
+resultado de esta fuente/origen/variante, no una garantía en YouTube o Atom.
 
-- Primer cuadro observado: **137.216 bytes leídos**, **3,10 %** del archivo, según
-  el contador de entrada de libVLC en el primer sondeo con cuadros mostrados.
-- A los 4,560 s: 146 cuadros de video decodificados, 274 bloques de audio
-  decodificados, 47 cuadros mostrados y 137 búferes de audio reproducidos.
-- Total enviado por el origen hasta detener la prueba: **280.576 bytes**, **6,34 %**
-  del archivo. No se recibió el 100 % antes de reproducir.
+Los tests nativos de parser (38) y política de OS (21) también pasaron con
+ASan/UBSan. Las comprobaciones del ZIP y sus hashes se registran tras empaquetar
+en el [cierre de publicación](https://github.com/kbdfh98uv/TubeLiviano/blob/main/releases/CHECKPOINT_0.5.2.md),
+fuera del propio ZIP para evitar una referencia circular al hash.
 
-Esto prueba salida temprana y uso de Range bajo esas condiciones. El sondeo tiene
-granularidad de 100 ms y las estadísticas de VLC tienen su propia actualización;
-el contador de lectura puede diferir de los bytes ya enviados por el socket.
-El porcentaje no incluye cabeceras de red, no mide YouTube y **no garantiza ~14 %
-en cualquier video, conexión o máquina**. El tamaño del MP4, su ubicación del índice,
-el bitrate, los streams separados y el prefetch influyen en la cifra.
 
-El búfer de red configurado es 450 ms. El prefetch se limita a 128 KiB, con lecturas
-de 16 KiB. El puente transmite MPEG-TS en vivo y no admite búsqueda por Range;
-el modo directo usa las capacidades Range de los servidores de los streams.
+## Repetir sin hardware
 
-## Limitaciones que siguen abiertas
-
-1. **Validación x86 real:** extraer el ZIP final en XP SP3, Windows 10 y Windows 11;
-   probar el EXE y los motores incluidos, no los binarios temporales de validación.
-2. **Atom real:** probar primero 240p, luego 144p y 360p. Medir la memoria del
-   frontend, VLC y yt-dlp por separado y en conjunto. El intérprete Python de los
-   ejecutables yt-dlp puede ser significativo con 512 MB aunque el frontend sea
-   pequeño. No hay cifra de RAM del Atom medida en esta entrega.
-3. **YouTube real:** comprobar búsqueda, enlaces, video/audio separados, cancelación
-   durante la resolución y expiración de URLs. En este entorno se observó un 403
-   del proxy; **no se observó un HTTP 429 de YouTube**. El servicio puede exigir
-   verificación/cookies o cambiar sus desafíos en otros entornos.
-4. **TLS en XP:** se incluyen raíces Mozilla actuales y se mantiene la validación
-   de certificados. Sigue pendiente verificar una conexión real con la combinación
-   XP, VLC 3 y el servidor remoto. No se desactivó TLS para superar fallos.
-5. **Tamaño:** los dos motores suman aproximadamente 38 MB antes de añadir VLC.
-   El ZIP reducido ronda 53 MB y supera la meta de ~40 MB. El tamaño y SHA-256
-   definitivos se registran en el archivo externo `package-report.json`.
-6. **Fuentes de terceros:** el compañero de fuentes incluye VLC, yt-dlp, QuickJS,
-   EJS, Certifi y recetas. No contiene todos los tarballs transitivos de VLC/Python.
-   Antes de distribución pública se debe completar esa provisión según sus
-   licencias; véase `THIRD_PARTY.md`. La licencia MIT cubre el código propio.
-
-## Repetir las comprobaciones
-
-Desde la raíz del repositorio, o desde `source/` en el ZIP:
+Desde la raíz del repo o `source/` del ZIP, con MinGW i686/MSVCRT y Python 3.12+:
 
 ```sh
-make
-python3 scripts/fetch-deps.py --sources
+make -B
+python3 scripts/fetch-deps.py --offline --sources  # caché completa previamente
 make clips
-python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 tests/engine_native_test.py
 cc -std=c99 -fsanitize=address,undefined tests/os_detection_test.c src/os_detect.c -o build/os_detection_native
 build/os_detection_native
-# Solo con Wine x86 funcional; en Windows se puede usar el modo self-test directo.
-WINE=wine python3 tests/playback.py
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+# Requiere Wine x86 funcional y DISPLAY. --help describe rutas/servidor X opcionales.
+python3 scripts/verify-offline.py --control-tests
 python3 scripts/package.py --slim-vlc
 python3 -m unittest discover -s tests -p test_package.py -v
 ```
 
-Las pruebas de ZIP se omiten explícitamente si aún no existe el paquete; deben
-ejecutarse después de empaquetar. El script de reproducción falla si no se ejecuta
-la aplicación o si faltan imagen/audio: no se sustituye por una prueba trivial.
-La aplicación también permite comprobar un clip desde Windows:
+Este entorno ejecutó la variante explícita mediante:
 
-```bat
-TubeLiviano.exe --self-test-media media\prueba-240.mp4 --report prueba.json --test-ms 5500
+```sh
+WINEDLLOVERRIDES='mscoree,mshtml=' python3 scripts/verify-offline.py \
+  --surrogate-x64 --control-tests \
+  --cc-prefix /workspace/toolchain/root/usr/bin/x86_64-w64-mingw32- \
+  --wine /workspace/toolchain/wine-10.0-amd64-wow64/bin/wine \
+  --wine-prefix /workspace/toolchain/wineprefix10 \
+  --xvfb /workspace/toolchain/root/usr/bin/Xvfb \
+  --report-dir build/reports/session-0.5.2/publish-verified
 ```
 
-Después, usar el botón offline para confirmar sonido audible y probar Cancelar,
-Reintentar y cambio de perfil. Conservar el JSON, versión del OS, calidad elegida,
-RAM máxima y errores observados para comparar con futuras versiones.
+La opción `--surrogate-x64` nunca se interpreta como una prueba del EXE x86.
+Las pruebas del ZIP se omiten explícitamente antes de empaquetar y se ejecutan
+contra el archivo final antes de publicarlo. En Windows, `Probar_offline.cmd`
+funciona sin Python/PowerShell y conserva JSON nuevos por perfil en `%TEMP%`.
+
+## Límites abiertos
+
+1. **XP/framework:** los dos motores conservan sus versiones y hashes upstream.
+   Elegir XP correctamente no prueba su framework: los errores reportados de
+   `KERNELxp.dll`/`ntext.dll` requieren reproducirse en la máquina XP. Probar
+   `engines\xp\yt-dlp.exe --version` por separado antes de atribuir un fallo a
+   YouTube; no se sustituyen DLLs del sistema.
+2. **Atom 512 MB:** faltan RAM, CPU, fluidez, sonido y primer cuadro medidos. El
+   tamaño del frontend no equivale al de VLC ni los intérpretes empaquetados por
+   yt-dlp. El perfil recomendado sigue siendo 240p, con 144p como mínimo.
+3. **YouTube/TLS reales:** el proxy del build bloqueó CONNECT al servicio con
+   HTTP 403; no se observó un HTTP 429 de YouTube. Verificación/desafíos o 429
+   pueden aparecer fuera de aquí. No se desactivan certificados para superarlos.
+4. **Tamaño/fuentes:** el ZIP supera la meta de ~40 MB; los dos motores ya pesan
+   unos 38 MB. Las fuentes transitivas pendientes se describen en
+   [THIRD_PARTY.md](../THIRD_PARTY.md). MIT cubre el código propio.
+
+La siguiente prueba útil está en [PRUEBAS_XP_ATOM.md](PRUEBAS_XP_ATOM.md): cargar
+frontend, reproducir tres clips, probar motor XP y recién después medir YouTube.
